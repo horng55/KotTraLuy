@@ -19,7 +19,10 @@ class ApiPrototypeTest extends TestCase
             'role' => 'owner',
         ];
 
-        $response = $this->postJson('/api/register', $payload);
+        $response = $this->withHeaders([
+            'Origin' => 'https://kottraluy.tech',
+            'Referer' => 'https://kottraluy.tech/',
+        ])->postJson('/api/register', $payload);
 
         $response->assertStatus(201)
             ->assertJsonStructure([

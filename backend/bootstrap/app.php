@@ -12,13 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-    $middleware->statefulApi();
-
-    $middleware->validateCsrfTokens(except: [
-        'api/telegram/webhook',
-        'api/telegram/webhook/*',
-    ]);
-})
+        // The SPA authenticates API requests with Sanctum bearer tokens.
+        // Do not enable stateful cookie authentication here: doing so applies
+        // CSRF validation to same-origin API requests such as login/register.
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
