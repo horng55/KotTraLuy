@@ -17,9 +17,15 @@ class User extends Authenticatable
     protected $fillable = [
         'business_id',
         'name',
+        'username',
         'email',
         'password',
         'role',
+        'assigned_shift',
+        'status',
+        'must_change_password',
+        'created_by',
+        'last_login_at',
         'telegram_chat_id',
     ];
 
@@ -33,6 +39,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'last_login_at' => 'datetime',
             'telegram_chat_id' => 'integer',
         ];
     }

@@ -10,9 +10,13 @@ class ShiftController
 {
     public function index(Request $request)
     {
+        $query = Shift::where('business_id', $request->user()->business_id);
+        if ($request->user()->role !== 'owner') {
+            $query->where('user_id', $request->user()->id);
+        }
+
         return response()->json(
-            Shift::where('business_id', $request->user()->business_id)
-                ->orderBy('started_at', 'desc')
+            $query->orderBy('started_at', 'desc')
                 ->get()
         );
     }
@@ -20,7 +24,7 @@ class ShiftController
     public function store(Request $request)
     {
         $data = $request->validate([
-            'shift_type' => 'required|in:morning,evening',
+            'shift_type' => 'required|in:A,B,morning,evening',
             'opening_cash' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
@@ -32,6 +36,14 @@ class ShiftController
 
         if ($existing) {
             return response()->json(['message' => 'You already have an open shift for this business.'], 422);
+        }
+
+        if ($request->user()->role === 'staff'
+            && $request->user()->assigned_shift
+            && $data['shift_type'] !== $request->user()->assigned_shift) {
+            return response()->json([
+                'message' => 'You may only start your assigned Shift '.$request->user()->assigned_shift.'.',
+            ], 422);
         }
 
         $shift = Shift::create([
@@ -52,6 +64,9 @@ class ShiftController
         if ((int) $shift->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
+        if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+            return response()->json(['message' => 'You do not have access to this shift.'], 403);
+        }
 
         return response()->json($shift);
     }
@@ -61,10 +76,13 @@ class ShiftController
         if ((int) $shift->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
+        if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+            return response()->json(['message' => 'You do not have access to this shift.'], 403);
+        }
 
         $data = $request->validate([
             'notes' => 'nullable|string',
-            'shift_type' => 'sometimes|in:morning,evening',
+            'shift_type' => 'sometimes|in:A,B,morning,evening',
         ]);
 
         $shift->update($data);
@@ -76,6 +94,9 @@ class ShiftController
     {
         if ((int) $shift->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
+        }
+        if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+            return response()->json(['message' => 'You do not have access to this shift.'], 403);
         }
 
         $shift->delete();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Sale;
+use App\Models\Shift;
 use App\Models\WasteRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -76,11 +77,13 @@ class SaleController
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
 
-        $sale = DB::transaction(function () use ($request, $data) {
+        $shiftId = $this->resolveShiftId($request, $data['shift_id'] ?? null);
+
+        $sale = DB::transaction(function () use ($request, $data, $shiftId) {
             $business = $request->user()->business;
             $sale = Sale::create([
                 'business_id' => $business->id,
-                'shift_id' => $data['shift_id'] ?? null,
+                'shift_id' => $shiftId,
                 'user_id' => $request->user()->id,
                 'sale_no' => 'SALE-' . now()->timestamp,
                 'sold_at' => $data['sold_at'],
@@ -155,5 +158,24 @@ class SaleController
         $sale->delete();
 
         return response()->json(['message' => 'Sale deleted successfully']);
+    }
+
+    private function resolveShiftId(Request $request, ?int $requestedShiftId): ?int
+    {
+        $query = Shift::where('business_id', $request->user()->business_id);
+
+        if ($requestedShiftId !== null) {
+            $shift = $query->whereKey($requestedShiftId)->firstOrFail();
+            if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+                abort(403, 'You do not have access to this shift.');
+            }
+
+            return $shift->id;
+        }
+
+        return (clone $query)
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'open')
+            ->value('id');
     }
 }

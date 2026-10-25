@@ -87,6 +87,8 @@ class TelegramBotController
         }
 
         $user = User::where('telegram_chat_id', $chatId)
+            ->where('status', 'active')
+            ->where('must_change_password', false)
             ->lockForUpdate()
             ->first();
 
@@ -259,7 +261,7 @@ class TelegramBotController
                 $shift = Shift::create([
                     'business_id' => $user->business_id,
                     'user_id' => $user->id,
-                    'shift_type' => 'morning',
+                    'shift_type' => $user->assigned_shift ?? 'A',
                     'started_at' => now(),
                     'opening_cash' => 0,
                     'notes' => 'Started from Telegram',
@@ -341,7 +343,11 @@ class TelegramBotController
             return 'This Telegram account is already connected to another KotTraLuy account.';
         }
 
-        $linkOwner = User::whereKey($link->user_id)->lockForUpdate()->first();
+        $linkOwner = User::whereKey($link->user_id)
+            ->where('status', 'active')
+            ->where('must_change_password', false)
+            ->lockForUpdate()
+            ->first();
 
         if (! $linkOwner) {
             return 'That linking token is invalid or expired. Generate a new token in KotTraLuy and try again.';

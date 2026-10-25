@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // The SPA authenticates API requests with Sanctum bearer tokens.
         // Do not enable stateful cookie authentication here: doing so applies
         // CSRF validation to same-origin API requests such as login/register.
+        $middleware->alias([
+            'password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

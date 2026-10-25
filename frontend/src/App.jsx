@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, clearToken, saveToken } from './lib/api';
+import PasswordChangePanel from './components/PasswordChangePanel';
+import ShiftPanel from './components/ShiftPanel';
+import UserManagementPanel from './components/UserManagementPanel';
 
 const defaultForm = {
   name: '',
+  login: '',
   email: '',
   password: '',
   business_name: '',
@@ -18,6 +22,7 @@ const toneClasses = {
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('biztrack_token') || '');
+  const [currentUser, setCurrentUser] = useState(null);
   const [miniAppAuthenticating, setMiniAppAuthenticating] = useState(
     () => Boolean(window.Telegram?.WebApp?.initData)
   );
@@ -71,71 +76,55 @@ export default function App() {
       .then((result) => {
         saveToken(result.token);
         setToken(result.token);
+        setCurrentUser(result.user);
       })
       .catch((err) => setError(err.message))
       .finally(() => setMiniAppAuthenticating(false));
   }, []);
 
   // áž‘áž¶áž‰áž™áž€áž‘áž·áž“áŸ’áž“áž“áŸáž™ Dashboard & Products
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async (knownUser = currentUser) => {
     if (!token) return;
 
     try {
-      const [dashboardData, productList] = await Promise.all([
-        apiFetch('/dashboard'),
-        apiFetch('/products'),
-      ]);
-
-      setDashboard(dashboardData);
+      const user = knownUser || await apiFetch('/user');
+      if (!knownUser) setCurrentUser(user);
+      if (user.must_change_password) return;
+      const productList = await apiFetch('/products');
       setProducts(productList);
+      if (user.role === 'owner') {
+        setDashboard(await apiFetch('/dashboard'));
+      } else {
+        setDashboard(null);
+      }
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, [token, currentUser]);
 
   // Real-time Background Polling: Sync áž‘áž·áž“áŸ’áž“áž“áŸáž™áž–áž¸ Telegram Bot ážšáŸ€áž„ážšáž¶áž›áŸ‹ 3 ážœáž·áž“áž¶áž‘áž¸
   useEffect(() => {
-    if (!token) return;
+    if (!token || currentUser?.must_change_password) return;
 
-    const initialLoad = setTimeout(() => {
-      Promise.all([
-        apiFetch('/dashboard'),
-        apiFetch('/products'),
-      ])
-        .then(([dashboardData, productList]) => {
-          setDashboard(dashboardData);
-          setProducts(productList);
-        })
-        .catch((err) => setError(err.message));
-    }, 0);
+    const initialLoad = setTimeout(() => fetchDashboard(), 0);
 
     const interval = setInterval(() => {
-      Promise.all([
-        apiFetch('/dashboard'),
-        apiFetch('/products'),
-      ])
-        .then(([dashboardData, productList]) => {
-          setDashboard(dashboardData);
-          setProducts(productList);
-        })
-        .catch((err) => {
-          console.error('Background sync failed:', err);
-        });
+      fetchDashboard().catch((err) => console.error('Background sync failed:', err));
     }, 3000);
 
     return () => {
       clearTimeout(initialLoad);
       clearInterval(interval);
     };
-  }, [token]);
+  }, [token, currentUser?.must_change_password, fetchDashboard]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !currentUser || currentUser.must_change_password) return;
 
     apiFetch('/telegram/status')
       .then((status) => setTelegramStatus(status))
       .catch((err) => setTelegramLinkError(err.message));
-  }, [token]);
+  }, [token, currentUser]);
 
   useEffect(() => {
     if (!telegramCodeExpiresAt) return undefined;
@@ -306,7 +295,7 @@ export default function App() {
       const endpoint = authMode === 'login' ? '/login' : '/register';
       const payload =
         authMode === 'login'
-          ? { email: form.email, password: form.password }
+          ? { login: form.login, password: form.password }
           : {
               name: form.name,
               email: form.email,
@@ -323,6 +312,7 @@ export default function App() {
       if (result.token) {
         saveToken(result.token);
         setToken(result.token);
+        setCurrentUser(result.user);
         setForm(defaultForm);
       }
     } catch (err) {
@@ -332,9 +322,15 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/logout', { method: 'POST' });
+    } catch {
+      // Always clear the local credential even if the server is unavailable.
+    }
     clearToken();
     setToken('');
+    setCurrentUser(null);
     setDashboard(null);
     setProducts([]);
     setTelegramStatus({ connected: false, telegram_chat: null });
@@ -440,10 +436,10 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-medium text-emerald-200">
-              {token ? 'Owner' : 'Guest'}
+              {currentUser ? `${currentUser.role === 'owner' ? 'Owner' : 'Staff'}${currentUser.assigned_shift ? ` · Shift ${currentUser.assigned_shift}` : ''}` : token ? 'Loading...' : 'Guest'}
             </span>
             <span className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-200">
-              {dashboard?.business?.name || 'Business'}
+              {dashboard?.business?.name || currentUser?.business?.name || 'Business'}
             </span>
             {token && (
               <button
@@ -505,14 +501,24 @@ export default function App() {
                 </>
               )}
 
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="Email"
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-emerald-500"
-              />
+              {authMode === 'login' ? (
+                <input
+                  name="login"
+                  value={form.login}
+                  onChange={handleChange}
+                  placeholder="Username or email"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-emerald-500"
+                />
+              ) : (
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="Owner email"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-emerald-500"
+                />
+              )}
 
               <input
                 name="password"
@@ -534,16 +540,26 @@ export default function App() {
               </button>
             </form>
           </section>
+        ) : !currentUser ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+            Loading your account...
+          </section>
+        ) : currentUser.must_change_password ? (
+          <PasswordChangePanel required onChanged={() => { setError(''); setCurrentUser((user) => ({ ...user, must_change_password: false })); }} />
         ) : (
           <>
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {currentUser.role === 'owner' && <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {cards.map((card) => (
                 <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <p className="text-sm text-slate-500">{card.label}</p>
                   <p className={`mt-3 text-3xl font-bold ${toneClasses[card.tone]}`}>{card.value}</p>
                 </div>
               ))}
-            </section>
+            </section>}
+
+            <ShiftPanel user={currentUser} />
+
+            {currentUser.role === 'owner' && <UserManagementPanel />}
 
             <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -663,7 +679,7 @@ export default function App() {
             </section>
 
             <section className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              {currentUser.role === 'owner' && <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold">Todayâ€™s operations</h2>
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Live</span>
@@ -687,12 +703,12 @@ export default function App() {
                     <span className="font-semibold">{Number(dashboard?.number_of_sales || 0)}</span>
                   </div>
                 </div>
-              </div>
+              </div>}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="mb-4 text-lg font-semibold">Products</h2>
 
-                <form onSubmit={handleProductSubmit} className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                {currentUser.role === 'owner' && <><form onSubmit={handleProductSubmit} className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="grid grid-cols-2 gap-3">
                     <input
                       name="name"
@@ -781,6 +797,7 @@ export default function App() {
                     {transactionLoading ? 'Loading...' : 'Load demo products'}
                   </button>
                 </div>
+                </>}
 
                 <div className="space-y-2">
                   {products.length === 0 ? (

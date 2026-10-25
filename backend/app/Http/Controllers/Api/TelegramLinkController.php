@@ -18,7 +18,10 @@ class TelegramLinkController
         $telegramData = $validator->validate($validated['init_data']);
         $telegramUserId = (string) $telegramData['user']['id'];
 
-        $user = User::where('telegram_chat_id', $telegramUserId)->first();
+        $user = User::where('telegram_chat_id', $telegramUserId)
+            ->where('status', 'active')
+            ->where('must_change_password', false)
+            ->first();
 
         if (! $user) {
             return response()->json([
@@ -32,7 +35,7 @@ class TelegramLinkController
 
         return response()->json([
             'token' => $token,
-            'user' => $user,
+            'user' => $user->load('business'),
         ]);
     }
 
