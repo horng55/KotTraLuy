@@ -39,6 +39,8 @@ return [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
         'bot_username' => env('TELEGRAM_BOT_USERNAME', 'KotTraLuyBot'),
+        'mini_app_url' => env('TELEGRAM_MINI_APP_URL', env('APP_URL')),
+        'mini_app_init_data_ttl' => env('TELEGRAM_MINI_APP_INIT_DATA_TTL', 600),
     ],
 
 ];

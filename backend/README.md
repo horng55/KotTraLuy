@@ -57,3 +57,26 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Test the Telegram bot locally
+
+Telegram delivers bot messages to a public HTTPS webhook; signing in to Telegram alone does not connect the bot. For local testing:
+
+1. Create a bot with Telegram's `@BotFather` and keep its token private.
+2. Set `TELEGRAM_BOT_TOKEN` and a long random `TELEGRAM_WEBHOOK_SECRET` in `backend/.env`. Never commit either value.
+3. Run `php artisan migrate` from `backend`, then start the API with `php artisan serve --host=0.0.0.0 --port=8000`.
+4. Expose port 8000 using an HTTPS tunnel, for example ngrok or Cloudflare Tunnel. Use the tunnel's HTTPS URL as the webhook URL.
+5. Register or log in to KotTraLuy in the frontend, choose **Connect Telegram**, open `@KotTraLuyBot` in a private chat, and send the displayed `/link <token>` command before the token expires.
+6. Securely set `$env:TELEGRAM_BOT_TOKEN` in the PowerShell session you use for registration. Register the webhook once (replace the URL and secret with your own values):
+
+   ```powershell
+   $webhookUrl = "https://YOUR-HTTPS-TUNNEL/api/telegram/webhook"
+   $webhookSecret = "YOUR_TELEGRAM_WEBHOOK_SECRET"
+   Invoke-RestMethod -Method Post `
+     -Uri "https://api.telegram.org/bot$env:TELEGRAM_BOT_TOKEN/setWebhook" `
+     -Body @{ url = $webhookUrl; secret_token = $webhookSecret }
+   ```
+
+7. In the bot's private chat, send `/help`, `stock`, `today`, `start shift`, or a test operation such as `sale Milk 1 3.50`. Create and stock a product in BizTrack first. Check the dashboard and inventory afterward to confirm the bot wrote to the same business records. Group chats are ignored.
+
+Link tokens are single-use and expire after 5 minutes. Webhook updates are deduplicated by Telegram update ID. To inspect webhook delivery, use Telegram's `getWebhookInfo` method and the Laravel application log. Automated tests cover linking, webhook-secret enforcement, and duplicate sale delivery without contacting Telegram.

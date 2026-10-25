@@ -18,6 +18,9 @@ const toneClasses = {
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('biztrack_token') || '');
+  const [miniAppAuthenticating, setMiniAppAuthenticating] = useState(
+    () => Boolean(window.Telegram?.WebApp?.initData)
+  );
   const [authMode, setAuthMode] = useState('register');
   const [form, setForm] = useState(defaultForm);
   const [dashboard, setDashboard] = useState(null);
@@ -26,6 +29,15 @@ export default function App() {
   const [productLoading, setProductLoading] = useState(false);
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [telegramCode, setTelegramCode] = useState('');
+  const [telegramCodeExpiresAt, setTelegramCodeExpiresAt] = useState('');
+  const [telegramCommand, setTelegramCommand] = useState('');
+  const [telegramBotUrl, setTelegramBotUrl] = useState('');
+  const [telegramStatus, setTelegramStatus] = useState({ connected: false, telegram_chat: null });
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramLinkError, setTelegramLinkError] = useState('');
+  const [telegramSecondsRemaining, setTelegramSecondsRemaining] = useState(0);
+  const [telegramCopyMessage, setTelegramCopyMessage] = useState('');
   const [productForm, setProductForm] = useState({
     name: '',
     sku: '',
@@ -38,7 +50,33 @@ export default function App() {
   const [saleForm, setSaleForm] = useState({ productId: '', quantity: '1', unitPrice: '0' });
   const [purchaseForm, setPurchaseForm] = useState({ productId: '', quantity: '1', unitCost: '0' });
 
-  // ទាញយកទិន្នន័យ Dashboard & Products
+  useEffect(() => {
+    const telegramWebApp = window.Telegram?.WebApp;
+
+    if (!telegramWebApp) return;
+
+    telegramWebApp.ready();
+    telegramWebApp.expand();
+    telegramWebApp.setHeaderColor?.('#0f172a');
+    telegramWebApp.setBackgroundColor?.('#f1f5f9');
+
+    if (!telegramWebApp.initData) {
+      return;
+    }
+
+    apiFetch('/telegram/mini-app/auth', {
+      method: 'POST',
+      body: JSON.stringify({ init_data: telegramWebApp.initData }),
+    })
+      .then((result) => {
+        saveToken(result.token);
+        setToken(result.token);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setMiniAppAuthenticating(false));
+  }, []);
+
+  // áž‘áž¶áž‰áž™áž€áž‘áž·áž“áŸ’áž“áž“áŸáž™ Dashboard & Products
   const fetchDashboard = async () => {
     if (!token) return;
 
@@ -55,11 +93,21 @@ export default function App() {
     }
   };
 
-  // Real-time Background Polling: Sync ទិន្នន័យពី Telegram Bot រៀងរាល់ 3 វិនាទី
+  // Real-time Background Polling: Sync áž‘áž·áž“áŸ’áž“áž“áŸáž™áž–áž¸ Telegram Bot ážšáŸ€áž„ážšáž¶áž›áŸ‹ 3 ážœáž·áž“áž¶áž‘áž¸
   useEffect(() => {
     if (!token) return;
 
-    fetchDashboard();
+    const initialLoad = setTimeout(() => {
+      Promise.all([
+        apiFetch('/dashboard'),
+        apiFetch('/products'),
+      ])
+        .then(([dashboardData, productList]) => {
+          setDashboard(dashboardData);
+          setProducts(productList);
+        })
+        .catch((err) => setError(err.message));
+    }, 0);
 
     const interval = setInterval(() => {
       Promise.all([
@@ -75,8 +123,39 @@ export default function App() {
         });
     }, 3000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    apiFetch('/telegram/status')
+      .then((status) => setTelegramStatus(status))
+      .catch((err) => setTelegramLinkError(err.message));
+  }, [token]);
+
+  useEffect(() => {
+    if (!telegramCodeExpiresAt) return undefined;
+
+    const updateRemainingTime = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((new Date(telegramCodeExpiresAt).getTime() - Date.now()) / 1000)
+      );
+      setTelegramSecondsRemaining(remaining);
+    };
+
+    const initialUpdate = setTimeout(updateRemainingTime, 0);
+    const interval = setInterval(updateRemainingTime, 1000);
+
+    return () => {
+      clearTimeout(initialUpdate);
+      clearInterval(interval);
+    };
+  }, [telegramCodeExpiresAt]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -258,6 +337,83 @@ export default function App() {
     setToken('');
     setDashboard(null);
     setProducts([]);
+    setTelegramStatus({ connected: false, telegram_chat: null });
+    setTelegramCode('');
+    setTelegramCommand('');
+    setTelegramBotUrl('');
+  };
+
+  const refreshTelegramStatus = async () => {
+    setTelegramLoading(true);
+    setTelegramLinkError('');
+
+    try {
+      const status = await apiFetch('/telegram/status');
+      setTelegramStatus(status);
+
+      if (status.connected) {
+        setTelegramCode('');
+        setTelegramCodeExpiresAt('');
+        setTelegramCommand('');
+        setTelegramBotUrl('');
+      }
+    } catch (err) {
+      setTelegramLinkError(err.message);
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
+  const handleCreateTelegramCode = async () => {
+    setTelegramLinkError('');
+    setTelegramCopyMessage('');
+    setTelegramCode('');
+    setTelegramCodeExpiresAt('');
+    setTelegramLoading(true);
+
+    try {
+      const result = await apiFetch('/telegram/link-code', { method: 'POST' });
+      setTelegramCode(result.code);
+      setTelegramCodeExpiresAt(result.expires_at);
+      setTelegramCommand(result.command);
+      setTelegramBotUrl(result.bot_url);
+      setTelegramSecondsRemaining(
+        Math.max(0, Math.ceil((new Date(result.expires_at).getTime() - Date.now()) / 1000))
+      );
+    } catch (err) {
+      setTelegramLinkError(err.message);
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
+  const handleCopyTelegramCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(telegramCommand);
+      setTelegramCopyMessage('Command copied.');
+    } catch {
+      setTelegramCopyMessage('Copy failed. Select the command and copy it manually.');
+    }
+  };
+
+  const handleDisconnectTelegram = async () => {
+    if (!window.confirm('Disconnect this Telegram account from KotTraLuy?')) return;
+
+    setTelegramLoading(true);
+    setTelegramLinkError('');
+
+    try {
+      await apiFetch('/telegram/link', { method: 'DELETE' });
+      setTelegramStatus({ connected: false, telegram_chat: null });
+      setTelegramCode('');
+      setTelegramCodeExpiresAt('');
+      setTelegramCommand('');
+      setTelegramBotUrl('');
+    } catch (err) {
+      setTelegramLinkError(err.message);
+    } finally {
+      setTelegramLoading(false);
+    }
   };
 
   const cards = dashboard
@@ -301,7 +457,12 @@ export default function App() {
           </div>
         </header>
 
-        {!token ? (
+        {miniAppAuthenticating ? (
+          <section className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+            <p className="font-medium text-slate-800">Opening KotTraLuy...</p>
+            <p className="mt-2 text-sm text-slate-500">Securely verifying your Telegram account.</p>
+          </section>
+        ) : !token ? (
           <section className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex gap-2 rounded-full bg-slate-100 p-1">
               <button
@@ -384,10 +545,127 @@ export default function App() {
               ))}
             </section>
 
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Telegram connection</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Connect your private Telegram account to @KotTraLuyBot.
+                  </p>
+                </div>
+                <span
+                  className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+                    telegramStatus.connected
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : telegramCode && telegramSecondsRemaining > 0
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {telegramStatus.connected
+                    ? 'Connected'
+                    : telegramCode && telegramSecondsRemaining > 0
+                      ? 'Pending'
+                      : 'Not connected'}
+                </span>
+              </div>
+
+              {telegramStatus.connected ? (
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="font-medium text-emerald-800">Telegram is connected.</p>
+                  {telegramStatus.telegram_chat && (
+                    <p className="mt-1 text-sm text-emerald-700">
+                      Chat identifier: {telegramStatus.telegram_chat}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleDisconnectTelegram}
+                    disabled={telegramLoading}
+                    className="mt-3 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-700 disabled:opacity-60"
+                  >
+                    Disconnect Telegram
+                  </button>
+                </div>
+              ) : telegramCode && telegramSecondsRemaining > 0 ? (
+                <div className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm text-amber-900">
+                    Open the bot, then send the one-time command below in your private chat.
+                  </p>
+                  <div className="break-all rounded-lg bg-white p-3 font-mono text-sm text-slate-900">
+                    {telegramCommand}
+                  </div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Expires in {Math.floor(telegramSecondsRemaining / 60)}:
+                    {String(telegramSecondsRemaining % 60).padStart(2, '0')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={telegramBotUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white"
+                    >
+                      Open @KotTraLuyBot
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleCopyTelegramCommand}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800"
+                    >
+                      Copy command
+                    </button>
+                    <button
+                      type="button"
+                      onClick={refreshTelegramStatus}
+                      disabled={telegramLoading}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 disabled:opacity-60"
+                    >
+                      Check connection
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateTelegramCode}
+                      disabled={telegramLoading}
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 disabled:opacity-60"
+                    >
+                      Generate a new token
+                    </button>
+                  </div>
+                  {telegramCopyMessage && <p className="text-xs text-slate-600">{telegramCopyMessage}</p>}
+                </div>
+              ) : (
+                <div className="mt-4">
+                  {telegramCode && (
+                    <p className="mb-3 text-sm text-amber-700">
+                      That token expired. Generate a new one to continue.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCreateTelegramCode}
+                    disabled={telegramLoading}
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  >
+                    {telegramLoading ? 'Generating...' : 'Connect Telegram'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={refreshTelegramStatus}
+                    disabled={telegramLoading}
+                    className="ml-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-60"
+                  >
+                    Refresh status
+                  </button>
+                </div>
+              )}
+              {telegramLinkError && <p className="mt-3 text-sm text-rose-600">{telegramLinkError}</p>}
+            </section>
+
             <section className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Today’s operations</h2>
+                  <h2 className="text-lg font-semibold">Todayâ€™s operations</h2>
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Live</span>
                 </div>
 
