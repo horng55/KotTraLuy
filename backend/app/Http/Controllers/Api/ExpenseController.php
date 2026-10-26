@@ -20,6 +20,7 @@ class ExpenseController
     {
         $data = $request->validate([
             'category' => 'required|string',
+            'currency' => 'nullable|in:USD,KHR',
             'description' => 'required|string',
             'amount' => 'required|numeric|min:0',
             'expense_date' => 'required|date',
@@ -29,6 +30,7 @@ class ExpenseController
 
         $expense = Expense::create([
             'business_id' => $request->user()->business_id,
+            'currency' => $data['currency'] ?? $request->user()->business->currency,
             'shift_id' => $data['shift_id'] ?? null,
             'user_id' => $request->user()->id,
             'category' => $data['category'],
@@ -60,6 +62,7 @@ class ExpenseController
             'category' => 'sometimes|required|string',
             'description' => 'sometimes|required|string',
             'amount' => 'sometimes|numeric|min:0',
+            'currency' => 'sometimes|in:USD,KHR',
             'expense_date' => 'sometimes|date',
             'notes' => 'nullable|string',
         ]);

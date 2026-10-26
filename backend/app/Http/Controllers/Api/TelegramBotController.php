@@ -100,6 +100,10 @@ class TelegramBotController
             return 'KotTraLuy Telegram is not linked yet. Log in to KotTraLuy, choose Connect Telegram, then send /link <token> to this bot.';
         }
 
+        if ($user->role === 'staff' && ! $user->telegram_enabled) {
+            return 'Telegram access is disabled for your account. Ask the business owner to enable it.';
+        }
+
         $trimmed = Str::lower($text);
         $reply = null;
 
@@ -122,6 +126,11 @@ class TelegramBotController
                 $reply = "Product '{$productName}' was not found in your business stock.";
             } elseif ($product->stock_quantity < $quantity) {
                 $reply = "Not enough stock for {$product->name}. Available: {$product->stock_quantity}.";
+            } elseif ($user->role === 'staff' && ! Shift::where('business_id', $user->business_id)
+                ->where('user_id', $user->id)
+                ->where('status', 'open')
+                ->exists()) {
+                $reply = 'Open your assigned shift before recording a Telegram sale.';
             } else {
                 DB::transaction(function () use ($user, $product, $quantity, $unitPrice) {
                     $openShiftId = Shift::where('business_id', $user->business_id)
@@ -346,6 +355,9 @@ class TelegramBotController
         $linkOwner = User::whereKey($link->user_id)
             ->where('status', 'active')
             ->where('must_change_password', false)
+            ->where(function ($query) {
+                $query->where('role', 'owner')->orWhere('telegram_enabled', true);
+            })
             ->lockForUpdate()
             ->first();
 

@@ -1,0 +1,144 @@
+.brand {
+  gap: 0;
+  color: #005e2a;
+  font-size: 19px;
+}
+
+.brand-icon {
+  width: 154px;
+  height: 50px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 154px;
+  color: #005e2a;
+}
+
+.brand-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.brand-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.side-top {
+  align-items: center;
+  padding-bottom: 10px;
+}
+
+.workspace-switch {
+  margin-top: 0;
+}
+
+.brand strong {
+  letter-spacing: -0.45px;
+}
+
+.brand i {
+  background: #c9e77d;
+}
+
+.auth-brand .brand-icon {
+  color: #fff;
+}
+
+.auth-brand .brand strong {
+  color: #fff;
+}
+
+/* Brand primary override */
+.button.primary,
+.sidebar nav button.selected,
+.eyebrow,
+.text-button,
+.stock,
+.provider,
+.source-line a,
+.availability.available,
+footer button,
+.status-dot,
+.record-dot {
+  color: #005e2a;
+}
+
+.button.primary {
+  background: #005e2a;
+  color: #fff;
+}
+
+.sidebar nav button,
+.sidebar nav button.selected {
+  color: #607582;
+}
+
+.nav-icon,
+.inline-icon {
+  filter: brightness(0) saturate(100%) invert(43%) sepia(11%) saturate(638%) hue-rotate(155deg) brightness(91%) contrast(87%);
+}
+
+.sidebar nav button.selected {
+  background: #e1f0e6;
+}
+
+.progress span,
+.status-dot,
+.record-dot {
+  background: #005e2a;
+}
+
+.metric-icon.up {
+  color: #005e2a;
+  background: #e1f0e6;
+}
+
+.side-foot,
+.workspace-switch .workspace-icon,
+.check-status.matched,
+.status-text.matched,
+.document-icon,
+.pack-icon,
+.product-symbol,
+.product-icon,
+.column.revenue,
+.legend-revenue {
+  color: #005e2a;
+}
+
+.workspace-switch .workspace-icon,
+.document-icon,
+.pack-icon,
+.product-symbol,
+.product-icon {
+  background: #e1f0e6;
+}
+
+.column.revenue,
+.legend-revenue {
+  background: #005e2a;
+}
+
+.field input:focus,
+.field select:focus,
+.amount-field input:focus {
+  border-color: #005e2a;
+}
+
+.auth-logo {
+  display: block;
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+}
+
+@media (max-width: 700px) {
+  .brand-icon {
+    width: 140px;
+    flex-basis: 140px;
+    height: 42px;
+  }
+}

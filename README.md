@@ -1,6 +1,6 @@
-# BizTrack
+# KotTraLuy
 
-BizTrack is a business management app for inventory, sales, purchases, and dashboard insights.
+KotTraLuy is a business management app for inventory, sales, purchases, and SME financing preparation.
 
 ## Projects
 
@@ -16,7 +16,7 @@ BizTrack is a business management app for inventory, sales, purchases, and dashb
 ## Repository Layout
 
 ```text
-biztrack/
+KotTraLuy/
 ├── backend/
 ├── frontend/
 ├── start_all.bat

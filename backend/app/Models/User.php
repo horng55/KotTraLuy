@@ -27,6 +27,7 @@ class User extends Authenticatable
         'created_by',
         'last_login_at',
         'telegram_chat_id',
+        'telegram_enabled',
     ];
 
     protected $hidden = [
@@ -42,6 +43,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'last_login_at' => 'datetime',
             'telegram_chat_id' => 'integer',
+            'telegram_enabled' => 'boolean',
         ];
     }
 

@@ -14,12 +14,19 @@ class Business extends Model
     protected $fillable = [
         'name',
         'business_type',
+        'activity',
+        'province',
+        'operating_started_on',
+        'registration_status',
+        'profile_source',
         'phone',
         'address',
         'currency',
         'timezone',
         'status',
     ];
+
+    protected $casts = ['operating_started_on' => 'date'];
 
     public function users(): BelongsToMany
     {

@@ -36,6 +36,7 @@ class UserManagementController
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(['owner', 'staff'])],
             'assigned_shift' => ['nullable', Rule::requiredIf(fn () => $request->input('role') === 'staff'), Rule::in(['A', 'B'])],
+            'telegram_enabled' => ['sometimes', 'boolean'],
         ]);
 
         $user = User::create([
@@ -49,6 +50,7 @@ class UserManagementController
             'status' => 'active',
             'must_change_password' => true,
             'created_by' => $request->user()->id,
+            'telegram_enabled' => $data['role'] === 'staff' && ($data['telegram_enabled'] ?? false),
         ]);
 
         return response()->json(['data' => $user->only($this->visibleColumns())], 201);
@@ -69,6 +71,7 @@ class UserManagementController
             'username' => ['sometimes', 'required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($user->id)],
             'role' => ['sometimes', Rule::in(['owner', 'staff'])],
             'assigned_shift' => ['nullable', Rule::in(['A', 'B'])],
+            'telegram_enabled' => ['sometimes', 'boolean'],
         ]);
 
         $newRole = $data['role'] ?? $user->role;
@@ -84,6 +87,18 @@ class UserManagementController
             $data['username'] = strtolower($data['username']);
         }
         $data['assigned_shift'] = $newRole === 'staff' ? ($data['assigned_shift'] ?? $user->assigned_shift) : null;
+        $data['telegram_enabled'] = $newRole === 'staff'
+            ? ($data['telegram_enabled'] ?? (bool) $user->telegram_enabled)
+            : false;
+
+        if ($data['telegram_enabled'] === false && $user->telegram_enabled) {
+            $user->forceFill(['telegram_chat_id' => null])->save();
+            $user->tokens()->where('name', 'telegram-mini-app')->delete();
+            DB::table('telegram_link_codes')
+                ->where('user_id', $user->id)
+                ->whereNull('consumed_at')
+                ->update(['consumed_at' => now(), 'updated_at' => now()]);
+        }
         $user->update($data);
 
         return response()->json(['data' => $user->fresh()->only($this->visibleColumns())]);
@@ -179,6 +194,6 @@ class UserManagementController
 
     private function visibleColumns(): array
     {
-        return ['id', 'name', 'username', 'role', 'assigned_shift', 'status', 'must_change_password', 'last_login_at', 'telegram_chat_id'];
+        return ['id', 'name', 'username', 'role', 'assigned_shift', 'status', 'must_change_password', 'last_login_at', 'telegram_chat_id', 'telegram_enabled'];
     }
 }

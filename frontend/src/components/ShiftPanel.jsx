@@ -20,6 +20,8 @@ export default function ShiftPanel({ user }) {
     return () => { active = false; };
   }, []);
 
+  if (user?.role !== 'staff') return null;
+
   const openShift = shifts.find((shift) => shift.user_id === user.id && shift.status === 'open');
   const shiftType = user.role === 'staff' ? user.assigned_shift : ownerShift;
 
@@ -42,7 +44,7 @@ export default function ShiftPanel({ user }) {
   return (
     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-lg font-semibold">My shift</h2><p className="text-sm text-slate-600">Transactions are automatically attached to your open shift.</p></div>
+        <div><h2 className="text-lg font-semibold">My shift</h2><p className="text-sm text-slate-600">Sales from Telegram are attached to your open shift.</p></div>
         {openShift ? <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Shift {openShift.shift_type} open</span> : <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">No open shift</span>}
       </div>
       <div className="mt-4 flex items-center gap-3">

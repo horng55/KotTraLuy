@@ -27,6 +27,7 @@ class PurchaseController
             'purchase_date' => 'required|date',
             'reference_no' => 'nullable|string',
             'notes' => 'nullable|string',
+            'currency' => 'nullable|in:USD,KHR',
             'shift_id' => 'nullable|exists:shifts,id',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -40,6 +41,7 @@ class PurchaseController
             $business = $request->user()->business;
             $purchase = Purchase::create([
                 'business_id' => $business->id,
+                'currency' => $data['currency'] ?? $business->currency,
                 'shift_id' => $shiftId,
                 'user_id' => $request->user()->id,
                 'supplier_name' => $data['supplier_name'] ?? null,
