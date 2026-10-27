@@ -21,6 +21,9 @@ class TelegramLinkController
         $user = User::where('telegram_chat_id', $telegramUserId)
             ->where('status', 'active')
             ->where('must_change_password', false)
+            ->where(function ($query) {
+                $query->where('role', 'owner')->orWhere('telegram_enabled', true);
+            })
             ->first();
 
         if (! $user) {
@@ -42,6 +45,13 @@ class TelegramLinkController
     public function createCode(Request $request)
     {
         $user = $request->user();
+
+        if ($user->role === 'staff' && ! $user->telegram_enabled) {
+            return response()->json([
+                'message' => 'Your owner has not enabled Telegram access for your account.',
+                'code' => 'telegram_access_disabled',
+            ], 403);
+        }
 
         if ($user->telegram_chat_id !== null) {
             return response()->json([

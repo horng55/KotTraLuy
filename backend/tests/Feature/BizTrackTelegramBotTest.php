@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Business;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Shift;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,13 @@ class BizTrackTelegramBotTest extends TestCase
             'business_id' => $business->id,
             'role' => 'staff',
             'telegram_chat_id' => 123456,
+            'telegram_enabled' => true,
+        ]);
+        Shift::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+            'shift_type' => 'A',
+            'status' => 'open',
         ]);
 
         $product = Product::factory()->create([
@@ -80,6 +88,7 @@ class BizTrackTelegramBotTest extends TestCase
         User::factory()->create([
             'business_id' => $business->id,
             'telegram_chat_id' => 123456,
+            'telegram_enabled' => true,
         ]);
         $product = Product::factory()->create([
             'business_id' => $business->id,

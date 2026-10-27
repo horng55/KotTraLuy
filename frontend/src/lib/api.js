@@ -1,7 +1,7 @@
 const API_BASE = '/api';
 
 export async function apiFetch(url, options = {}) {
-  const token = localStorage.getItem('biztrack_token');
+  const token = sessionStorage.getItem('biztrack_token');
   const hasBody = options.body !== undefined && options.body !== null;
 
   const headers = {
@@ -29,9 +29,9 @@ export async function apiFetch(url, options = {}) {
 }
 
 export function saveToken(token) {
-  localStorage.setItem('biztrack_token', token);
+  sessionStorage.setItem('biztrack_token', token);
 }
 
 export function clearToken() {
-  localStorage.removeItem('biztrack_token');
+  sessionStorage.removeItem('biztrack_token');
 }

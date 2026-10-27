@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\TelegramBotController;
 use App\Http\Controllers\Api\TelegramLinkController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\WasteController;
+use App\Http\Controllers\Api\FinancingController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/telegram/webhook', [TelegramBotController::class, 'webhook'])->middleware('throttle:120,1');
@@ -46,5 +47,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports/daily', [ReportController::class, 'daily']);
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+        Route::get('/financing/overview', [FinancingController::class, 'overview']);
+        Route::get('/financing/products', [FinancingController::class, 'products']);
+        Route::put('/financing/profile', [FinancingController::class, 'saveProfile']);
+        Route::put('/financing/business', [FinancingController::class, 'updateBusiness']);
+        Route::put('/financing/documents/{documentKey}', [FinancingController::class, 'updateDocument']);
+        Route::get('/financing/packs', [FinancingController::class, 'packs']);
+        Route::post('/financing/packs', [FinancingController::class, 'createPack']);
     });
 });

@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-synthesis: none;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Inter', sans-serif;
+  line-height: 1.25;
+}
+
+.brand,
+.brand-mark,
+.brand-icon,
+.page-heading h1,
+.hero h2,
+.panel-title h2,
+.option-card h3,
+.modal h2,
+.auth-card h1 {
+  font-family: 'Inter', sans-serif;
+}
+
+.brand-icon {
+  width: 29px;
+  height: 29px;
+  display: block;
+  flex: 0 0 29px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 500%;
+  border-radius: 8px;
+}
+
+.telegram-avatar img {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.page-heading h1,
+.auth-card h1 {
+  font-size: clamp(24px, 2.4vw, 30px);
+}
+
+.hero h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.25;
+}
+
+.metric > strong,
+.readiness-number strong,
+.table-row > strong,
+.record-list-row > strong,
+.option-fields,
+.amount-field input,
+.review-box strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.metric > strong,
+.readiness-number strong,
+.table-row > strong,
+.record-list-row > strong {
+  font-family: 'Inter', sans-serif;
+}
+
+:lang(km),
+[lang='km'],
+[lang='km'] * {
+  font-family: 'Kantumruy Pro', 'Inter', sans-serif;
+  line-height: 1.8;
+}
+
+:lang(km) input,
+:lang(km) select,
+:lang(km) textarea,
+[lang='km'] input,
+[lang='km'] select,
+[lang='km'] textarea {
+  height: auto;
+  min-height: 44px;
+  overflow: visible;
+  line-height: 1.8;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #dbe8e5;
+  border-radius: 7px;
+  background: #f5faf8;
+  color: #6f838b;
+  font-size: 12px;
+  justify-content: center;
+}
+
+.language-switch .current {
+  color: #087f70;
+  font-weight: 700;
+}
+
+.mobile-header .language-switch {
+  width: auto;
+  padding: 5px 8px;
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.auth-language {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.auth-language .language-switch {
+  width: auto;
+}

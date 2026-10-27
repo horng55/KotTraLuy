@@ -70,6 +70,7 @@ class SaleController
         $data = $request->validate([
             'sold_at' => 'required|date',
             'notes' => 'nullable|string',
+            'currency' => 'nullable|in:USD,KHR',
             'shift_id' => 'nullable|exists:shifts,id',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -83,6 +84,7 @@ class SaleController
             $business = $request->user()->business;
             $sale = Sale::create([
                 'business_id' => $business->id,
+                'currency' => $data['currency'] ?? $business->currency,
                 'shift_id' => $shiftId,
                 'user_id' => $request->user()->id,
                 'sale_no' => 'SALE-' . now()->timestamp,

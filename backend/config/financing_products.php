@@ -1,0 +1,56 @@
+<?php
+
+return [
+    [
+        'key' => 'aba-small-business-loan',
+        'provider' => 'ABA Bank',
+        'name' => 'Small Business Loan',
+        'currency' => ['USD', 'KHR'],
+        'amount_range' => ['USD' => ['min' => 1000, 'max' => 200000], 'KHR' => ['min' => 4000000, 'max' => 800000000]],
+        'term' => 'Up to 10 years',
+        'purpose' => ['Capital expenditure', 'Working capital', 'Operational needs', 'Investment and other business needs'],
+        'requirements' => ['Business operating in Cambodia for at least 12 months', 'Collateral information', 'Identity document', 'Business financial records'],
+        'criteria' => [
+            ['key' => 'operating_12_months', 'label' => 'Business operating in Cambodia for at least 12 months', 'type' => 'operating_months', 'value' => 12],
+            ['key' => 'collateral', 'label' => 'Collateral information', 'type' => 'document', 'value' => 'collateral_information'],
+            ['key' => 'identity', 'label' => 'Identity document', 'type' => 'document', 'value' => 'identity_document'],
+        ],
+        'source_url' => 'https://www.ababank.com/en/small-business-loan/',
+        'last_verified' => '2026-10-25',
+        'verification_status' => 'official_source_reviewed',
+    ],
+    [
+        'key' => 'acleda-merchant',
+        'provider' => 'ACLEDA Bank',
+        'name' => 'Merchant / small enterprise financing',
+        'currency' => ['USD', 'KHR'],
+        'amount_range' => null,
+        'term' => null,
+        'purpose' => ['Business working capital'],
+        'requirements' => ['Account and payment history requirements need provider confirmation', 'Business financial records'],
+        'criteria' => [
+            ['key' => 'account_history', 'label' => 'Account and payment history', 'type' => 'bank_confirmation', 'value' => null],
+            ['key' => 'financial_records', 'label' => 'Business financial records', 'type' => 'document', 'value' => 'business_financial_records'],
+        ],
+        'source_url' => 'https://www.acledabank.com.kh/kh/eng/ps_credit?t=b',
+        'last_verified' => '2026-10-25',
+        'verification_status' => 'requirements_need_confirmation',
+    ],
+    [
+        'key' => 'ftb-cgcc-sme',
+        'provider' => 'FTB',
+        'name' => 'CGCC-backed SME financing',
+        'currency' => ['USD', 'KHR'],
+        'amount_range' => null,
+        'term' => null,
+        'purpose' => ['SME financing'],
+        'requirements' => ['CGCC and bank conditions need confirmation', 'Business profile', 'Financial records'],
+        'criteria' => [
+            ['key' => 'cgcc_conditions', 'label' => 'CGCC and bank conditions', 'type' => 'bank_confirmation', 'value' => null],
+            ['key' => 'business_profile', 'label' => 'Business profile', 'type' => 'profile', 'value' => null],
+        ],
+        'source_url' => 'https://ftb.com.kh/products/sme/cgcc',
+        'last_verified' => '2026-10-25',
+        'verification_status' => 'source_requires_manual_confirmation',
+    ],
+];
