@@ -1,0 +1,120 @@
+.auth-screen {
+  background: #ffff;
+}
+
+.auth-card {
+  background: #fff;
+}
+
+.auth-screen {
+  min-height: 100vh;
+  padding: 48px 24px;
+  background: #f7f6f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.auth-brand {
+  position: relative;
+  inset: auto;
+  width: min(410px, 42vw);
+  min-height: 690px;
+  padding: 26px 36px;
+  border-radius: 12px 0 0 12px;
+  background: #005e2a;
+  color: #fff;
+  overflow: hidden;
+  box-shadow: 0 18px 42px rgba(20, 55, 38, .12);
+}
+
+.auth-logo {
+  width: 174px;
+  height: auto;
+  display: block;
+  filter: none;
+}
+
+.auth-brand::before {
+  content: "A clearer path to business finance.";
+  position: absolute;
+  top: 140px;
+  left: 36px;
+  right: 28px;
+  color: #fff;
+  font-size: 32px;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.auth-brand::after {
+  content: "Organize your records, understand what's missing, and prepare for your next funding conversation.\A\A✓  Keep business records organized\A    Store and manage your key documents in one place.\A\A⌕  Identify missing information\A    See what you need before speaking with a provider.\A\A♧  Prepare for provider review\A    Present a complete and organized business profile.";
+  white-space: pre-line;
+  position: absolute;
+  top: 245px;
+  left: 36px;
+  right: 28px;
+  color: #d7f0e4;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.auth-card {
+  position: relative;
+  width: min(470px, 48vw);
+  min-height: 690px;
+  padding: 48px 34px 32px;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 18px 42px rgba(20, 55, 38, .12);
+}
+
+.auth-language {
+  position: absolute;
+  top: 20px;
+  right: 26px;
+}
+
+.auth-card h1 {
+  font-size: 29px;
+  color: #111827;
+}
+
+.auth-card > p:not(.eyebrow) {
+  color: #536275;
+}
+
+.auth-card .segmented {
+  margin-top: 24px;
+}
+
+.auth-card .field input {
+  min-height: 39px;
+  background: #fff;
+}
+
+.auth-card .button.primary {
+  background: #005e2a;
+}
+
+@media (max-width: 760px) {
+  .auth-screen {
+    padding: 20px 14px;
+  }
+
+  .auth-brand,
+  .auth-card {
+    width: min(100%, 470px);
+    min-height: 0;
+  }
+
+  .auth-brand {
+    display: none;
+  }
+
+  .auth-card {
+    border-radius: 12px;
+  }
+}
