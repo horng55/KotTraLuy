@@ -71,6 +71,21 @@ footer button,
   color: #fff;
 }
 
+.hero,
+.prep-summary {
+  background: #005e2a;
+}
+
+.prep-summary .prep-next {
+  display: block;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #ffffff33;
+  color: #e5f3c5;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .sidebar nav button,
 .sidebar nav button.selected {
   color: #607582;

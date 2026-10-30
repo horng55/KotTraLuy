@@ -24,16 +24,20 @@ class FinancingController
         $sales = Sale::where('business_id', $business->id)->where('sold_at', '>=', $recordsSince)->count();
         $purchases = Purchase::where('business_id', $business->id)->where('purchase_date', '>=', $recordsSince->toDateString())->count();
 
+        $bankStatementsAvailable = $documents->firstWhere('document_key', 'bank_statements')?->availability === 'available';
+        $registrationProvided = $business->registration_status === 'registered'
+            || $profile->business_registration_status === 'provided';
+
         return response()->json([
             'business_profile' => $business,
             'profile' => $profile,
             'documents' => $documents,
             'records' => ['sales' => $sales, 'purchases' => $purchases, 'months_available' => $sales || $purchases ? 3 : 0],
             'checklist' => [
-                ['key' => 'profile', 'label' => 'Business profile completed', 'status' => $business->name ? 'matched' : 'missing'],
-                ['key' => 'records', 'label' => 'Three months of records available', 'status' => ($sales || $purchases) ? 'matched' : 'missing'],
-                ['key' => 'bank_statement', 'label' => 'Bank statement uploaded', 'status' => $profile->bank_statement_status === 'provided' ? 'matched' : 'missing'],
-                ['key' => 'registration', 'label' => 'Business registration information reviewed', 'status' => $profile->business_registration_status === 'provided' ? 'matched' : 'unknown'],
+                ['key' => 'profile', 'label' => 'Business profile completed', 'status' => $business->name && $business->activity && $business->province ? 'matched' : 'missing'],
+                ['key' => 'records', 'label' => 'Recent business records available', 'status' => ($sales || $purchases) ? 'matched' : 'missing'],
+                ['key' => 'bank_statement', 'label' => 'Bank statement available', 'status' => $bankStatementsAvailable || $profile->bank_statement_status === 'provided' ? 'matched' : 'missing'],
+                ['key' => 'registration', 'label' => 'Business registration information reviewed', 'status' => $registrationProvided ? 'matched' : 'unknown'],
                 ['key' => 'collateral', 'label' => 'Collateral acceptance confirmed', 'status' => $profile->collateral_status === 'confirmed' ? 'matched' : 'unknown'],
             ],
         ]);
