@@ -1,0 +1,103 @@
+.ig-telegram-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: 20px; align-items: start; }
+.ig-card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); min-width: 0; }
+.ig-connection, .ig-permissions { padding: 24px; }
+.ig-connection > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.ig-telegram-icon { display: grid; place-items: center; width: 48px; height: 48px; background: var(--surface-subtle); border: 1px solid var(--border-accent); border-radius: 12px; color: var(--text-secondary); }
+.ig-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 8px; border-radius: 6px; font-size: 10px; color: var(--text-secondary); background: var(--surface-subtle); line-height: 1.5; }
+.ig-status.connected { color: var(--accent-foreground); background: var(--surface-subtle); }
+.ig-status.warning { color: var(--danger-foreground); background: var(--surface-accent); }
+.ig-connection h2 { font-size: 20px; letter-spacing: -.4px; margin: 0 0 8px; }
+.ig-connection > p { font-size: 12px; line-height: 1.8; color: var(--text-secondary); margin: 0; max-width: 480px; }
+.ig-connection-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 22px; }
+.ig-text-button { display: inline-flex; align-items: center; gap: 6px; font-size: 11px !important; color: var(--accent-foreground); padding: 4px 0; }
+.ig-text-button:hover { text-decoration: underline; }
+.ig-linked-account { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; margin-top: 18px; color: var(--accent-foreground); background: var(--surface); }
+.ig-linked-account small { display: block; font-size: 10px; color: var(--text-secondary); }
+.ig-linked-account strong { display: block; font-size: 12px; margin-top: 5px; }
+.ig-linked-account > span { margin-left: auto; font-size: 10px; color: var(--text-secondary); }
+.ig-link-instructions { display: grid; justify-items: start; gap: 10px; padding: 16px; margin-top: 20px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+.ig-link-instructions > strong { font-size: 13px; }
+.ig-link-instructions p { font-size: 11px; line-height: 1.8; color: var(--accent-foreground); margin: 0; }
+.ig-link-instructions small { color: var(--text-secondary); font-size: 10px; line-height: 1.6; }
+.ig-disabled, .ig-error { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 8px; margin-top: 18px; background: var(--surface); color: var(--danger-foreground); font-size: 12px; }
+.ig-disabled > svg, .ig-error > svg { flex-shrink: 0; margin-top: 2px; }
+.ig-disabled strong, .ig-error strong { font-size: 12px; }
+.ig-disabled p, .ig-error p { font-size: 11px; line-height: 1.8; margin: 5px 0 0; }
+.ig-error { background: var(--surface-subtle); color: var(--danger-foreground); }
+.ig-inline-note { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 11px !important; color: var(--warning-foreground) !important; line-height: 1.8; }
+.ig-permissions > header { display: flex; align-items: center; gap: 8px; color: var(--accent-foreground); }
+.ig-permissions h2, .ig-how h2 { margin: 0; font-size: 15px; color: var(--text-primary); }
+.ig-permissions > p, .ig-how header p { font-size: 11px; color: var(--text-secondary); margin: 7px 0 0; line-height: 1.7; }
+.ig-permissions dl { margin: 20px 0 0; }
+.ig-permissions dl > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid var(--border); }
+.ig-permissions dt { font-size: 11px; color: var(--text-secondary); }
+.ig-permissions dd { margin: 0; text-align: right; font-size: 11px; color: var(--text-primary); }
+.ig-security-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 18px; padding: 12px; border-radius: 8px; background: var(--surface); color: var(--text-secondary); }
+.ig-security-note svg { flex-shrink: 0; margin-top: 2px; }
+.ig-security-note p { margin: 0; font-size: 10px; line-height: 1.8; }
+.ig-how { margin-top: 24px; }
+.ig-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.ig-steps article { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 16px; }
+.ig-steps article > div { display: flex; align-items: center; justify-content: space-between; color: var(--accent-foreground); }
+.ig-steps article > div > span { display: grid; place-items: center; width: 24px; height: 24px; background: var(--surface-subtle); border-radius: 6px; font-size: 10px; font-weight: 700; }
+.ig-steps h3 { font-size: 12px; margin: 14px 0 8px; }
+.ig-steps p { margin: 0; font-size: 10px; line-height: 1.8; color: var(--text-secondary); }
+.ig-modal-backdrop { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--surface-elevated) 40%, transparent); padding: 20px; }
+.ig-confirm { width: min(100%, 420px); padding: 24px; border-radius: 12px; background: var(--surface); }
+.ig-confirm header { display: flex; justify-content: space-between; gap: 12px; }
+.ig-confirm h2 { font-size: 20px; margin: 0; }
+.ig-confirm > p { margin: 14px 0 20px; font-size: 12px; line-height: 1.8; color: var(--text-secondary); }
+.ig-confirm > div { display: flex; justify-content: flex-end; gap: 8px; }
+.financial-page .fp-button.danger { color: var(--on-primary); background: var(--danger-solid); border-color: var(--border); }
+.ig-document-layout, .ig-pack-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; align-items: start; }
+.ig-readiness, .ig-pack-create { padding: 24px; }
+.ig-readiness h2, .ig-pack-create h2 { font-size: 17px; margin: 18px 0 10px; line-height: 1.5; }
+.ig-readiness > strong { display: block; margin-top: 20px; font-size: 36px; letter-spacing: -1px; }
+.ig-readiness > strong small { color: var(--text-secondary); font-size: 20px; font-weight: 400; }
+.ig-readiness > p, .ig-pack-create > p { margin: 7px 0 18px; color: var(--text-secondary); font-size: 11px; line-height: 1.8; }
+.ig-readiness progress { display: block; width: 100%; height: 6px; border: 0; border-radius: 6px; overflow: hidden; accent-color: var(--accent-foreground); }
+.ig-readiness progress::-webkit-progress-bar { background: var(--surface-subtle); }
+.ig-readiness progress::-webkit-progress-value { background: var(--brand-primary); }
+.ig-readiness > div { display: flex; gap: 8px; color: var(--text-secondary); border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; }
+.ig-readiness > div > svg { flex-shrink: 0; margin-top: 3px; }
+.ig-readiness > div p { margin: 0; font-size: 10px; line-height: 1.8; }
+.ig-document-list, .ig-pack-list { overflow: hidden; }
+.ig-document-list > header, .ig-pack-list > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px; border-bottom: 1px solid var(--border); }
+.ig-document-list h2, .ig-pack-list h2 { margin: 0; font-size: 16px; }
+.ig-document-list header p, .ig-pack-list header p { margin: 6px 0 0; color: var(--text-secondary); font-size: 11px; }
+.ig-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text-secondary); min-width: 0; }
+.ig-search input { width: 100%; min-width: 0; border: 0; outline-offset: 2px; background: none; padding: 0; font-size: 11px; }
+.ig-document-row, .ig-pack-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.ig-document-icon { display: grid; place-items: center; width: 34px; height: 34px; background: var(--surface-subtle); color: var(--accent-foreground); border-radius: 8px; }
+.ig-document-row h3, .ig-pack-row h3 { margin: 0 0 6px; font-size: 12px; line-height: 1.6; }
+.ig-document-row p, .ig-pack-row p, .ig-pack-row small { margin: 5px 0; font-size: 10px; color: var(--text-secondary); line-height: 1.6; }
+.ig-verification { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 10px; }
+.ig-document-row .fp-button, .ig-pack-row .fp-button { min-height: 32px; padding: 7px 9px; font-size: 10px; }
+.ig-compact-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 36px 24px; color: var(--accent-foreground); }
+.ig-compact-empty h3 { color: var(--text-primary); font-size: 16px; margin: 0; }
+.ig-compact-empty p { max-width: 380px; margin: 0; font-size: 11px; color: var(--text-secondary); line-height: 1.8; }
+.ig-pack-create dl { border-top: 1px solid var(--border); margin: 16px 0; }
+.ig-pack-create dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 10px; }
+.ig-pack-create dt { color: var(--text-secondary); }
+.ig-pack-create dd { margin: 0; color: var(--danger-foreground); }
+.ig-pack-create dd.ig-good { color: var(--accent-foreground); }
+.ig-pack-create > label { display: grid; gap: 7px; font-size: 11px; }
+.ig-pack-create select { padding: 9px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; width: 100%; min-width: 0; background: var(--surface); }
+.ig-pack-create .ig-text-button { margin-top: 16px; }
+.ig-pack-note { display: flex; align-items: flex-start; gap: 8px; padding: 16px 20px; background: var(--surface); color: var(--text-secondary); font-size: 10px; line-height: 1.8; border-top: 1px solid var(--border); }
+.ig-pack-note > svg { flex-shrink: 0; margin-top: 2px; }
+@media (max-width: 1100px) { .ig-telegram-layout { grid-template-columns: minmax(0, 1fr); } .ig-document-layout, .ig-pack-layout { grid-template-columns: minmax(0, 1fr); } .ig-readiness > strong { margin-top: 12px; } }
+@media (max-width: 700px) {
+  .ig-connection, .ig-permissions, .ig-readiness, .ig-pack-create { padding: 18px; }
+  .ig-connection h2 { font-size: 19px; }
+  .ig-steps { grid-template-columns: minmax(0, 1fr); }
+  .ig-steps article { padding: 14px; }
+  .ig-linked-account { flex-wrap: wrap; }
+  .ig-document-row, .ig-pack-row { grid-template-columns: 34px minmax(0, 1fr); padding: 16px; }
+  .ig-document-row > .ig-status, .ig-pack-row > .ig-status { grid-column: 2; justify-self: start; }
+  .ig-document-row > .fp-button, .ig-pack-row > .fp-button { grid-column: 2; justify-self: start; }
+  .ig-document-list > header, .ig-pack-list > header { padding: 16px; }
+  .ig-search { width: 100%; }
+  .ig-permissions dl > div { align-items: flex-start; }
+  .ig-permissions dt { max-width: 60%; }
+}

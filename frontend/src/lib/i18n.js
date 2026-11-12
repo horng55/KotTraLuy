@@ -1,145 +1,115 @@
-/* eslint-disable no-dupe-keys */
-const dictionary = {
-  'Overview': 'ទិដ្ឋភាពទូទៅ',
-  'Business records': 'កំណត់ត្រាអាជីវកម្ម',
-  'Products & inventory': 'ផលិតផល និងសារពើភ័ណ្ឌ',
-  'Prepare for financing': 'រៀបចំហិរញ្ញប្បទាន',
-  'Finance options': 'ជម្រើសហិរញ្ញប្បទាន',
-  'My preparation packs': 'កញ្ចប់រៀបចំរបស់ខ្ញុំ',
-  'Document checklist': 'បញ្ជីត្រួតពិនិត្យឯកសារ',
-  'Business profile': 'ព័ត៌មានអាជីវកម្ម',
-  'Telegram bot preview': 'Telegram bot',
-  'Workspace': 'កន្លែងធ្វើការ',
-  'My business': 'អាជីវកម្មរបស់ខ្ញុំ',
-  'Self-reported workspace': 'ព័ត៌មានអាជីវកម្មដែលអ្នកបានបញ្ចូល',
-  'BUSINESS WORKSPACE': 'កន្លែងធ្វើការអាជីវកម្ម',
-  'Build your path to financing.': 'រៀបចំផ្លូវរបស់អ្នកទៅកាន់ហិរញ្ញប្បទាន។',
-  'Keep clear records. Prepare with confidence. Talk to a provider.': 'រក្សាកំណត់ត្រាឱ្យច្បាស់។ រៀបចំដោយទំនុកចិត្ត។ ពិភាក្សាជាមួយអ្នកផ្តល់សេវា។',
-  'Export': 'នាំចេញ',
-  'Add record': 'បន្ថែមកំណត់ត្រា',
-  'YOUR NEXT CHAPTER': 'ជំហានបន្ទាប់របស់អ្នក',
-  'A stronger business record.': 'រៀបចំទិន្នន័យអាជីវកម្មឱ្យបានល្អ',
-  'A clearer funding conversation.': 'ដើម្បីពិភាក្សាអំពីតម្រូវការទុនបានកាន់តែច្បាស់',
-  'Prepare for financing': 'រៀបចំហិរញ្ញប្បទាន',
-  'Revenue': 'ចំណូល',
-  'Expenses': 'ចំណាយ',
-  'Recorded cash movement': 'ចលនាសាច់ប្រាក់ដែលបានកត់ត្រា',
-  'Sales recorded': 'ការលក់ដែលបានកត់ត្រា',
-  'Recorded sales': 'ការលក់ដែលបានកត់ត្រា',
-  'Recorded expenses': 'ចំណាយដែលបានកត់ត្រា',
-  'Sales − expenses − purchases · not profit': 'ការលក់ − ចំណាយ − ការទិញ · មិនមែនប្រាក់ចំណេញទេ',
-  'Transactions in this workspace': 'ប្រតិបត្តិការនៅក្នុងកន្លែងធ្វើការនេះ',
-  'Financial trend': 'និន្នាការហិរញ្ញវត្ថុ',
-  'Recorded money in and money out': 'លុយចូល និងលុយចេញដែលបានកត់ត្រា',
-  'More records are needed before showing a trend': 'ត្រូវការកំណត់ត្រាបន្ថែម មុនពេលបង្ហាញនិន្នាការ',
-  'Not enough records yet': 'មិនទាន់មានកំណត់ត្រាគ្រប់គ្រាន់ទេ',
-  'Record at least two periods of activity to see a financial trend.': 'កត់ត្រាសកម្មភាពយ៉ាងហោចណាស់ពីររយៈពេល ដើម្បីមើលនិន្នាការហិរញ្ញវត្ថុ។',
-  'Preparation progress': 'កម្រិតនៃការត្រៀមខ្លួន',
-  'Availability, not a score or approval probability': 'ភាពមាន មិនមែនពិន្ទុ ឬប្រូបាប៊ីលីតេនៃការអនុម័តទេ',
-  'Continue preparation': 'បន្តការរៀបចំ',
-  'Recent records': 'កំណត់ត្រាថ្មីៗ',
-  'Latest activity in this workspace': 'សកម្មភាពចុងក្រោយនៅក្នុងកន្លែងធ្វើការនេះ',
-  'No recent records': 'មិនទាន់មានកំណត់ត្រាថ្មីៗទេ',
-  'Inventory alerts': 'ការជូនដំណឹងសារពើភ័ណ្ឌ',
-  'Low stock items from your records': 'មុខទំនិញស្តុកទាបពីកំណត់ត្រារបស់អ្នក',
-  'Inventory looks clear': 'សារពើភ័ណ្ឌមិនមានបញ្ហាទេ',
-  'Items at or below minimum stock will appear here.': 'មុខទំនិញដែលដល់ ឬក្រោមកម្រិតស្តុកអប្បបរមា នឹងបង្ហាញនៅទីនេះ។',
-  'Review and correct the activity behind your summaries.': 'ពិនិត្យ និងកែសម្រួលសកម្មភាពដែលនៅពីក្រោយសេចក្តីសង្ខេបរបស់អ្នក។',
-  'Track products, stock levels, and low-stock reminders.': 'តាមដានផលិតផល កម្រិតស្តុក និងការរំលឹកស្តុកទាប។',
-  'Organize what you know before speaking with a provider.': 'រៀបចំព័ត៌មានដែលអ្នកដឹង មុនពេលពិភាក្សាជាមួយអ្នកផ្តល់សេវា។',
-  'Compare product-specific published information without guessing bank decisions.': 'ប្រៀបធៀបព័ត៌មានដែលបានផ្សព្វផ្សាយតាមផលិតផល ដោយមិនសន្មត់ការសម្រេចចិត្តរបស់ធនាគារ។',
-  'Review dated drafts that are not submitted to any bank.': 'ពិនិត្យសេចក្តីព្រាងដែលមានកាលបរិច្ឆេទ និងមិនទាន់ដាក់ជូនធនាគារណាមួយ។',
-  'Track document availability without pretending secure files are uploaded.': 'តាមដានភាពមានឯកសារ ដោយមិនអះអាងថាឯកសារសុវត្ថិភាពត្រូវបានផ្ទុកឡើងទេ។',
-  'Keep your business context clear and self-reported until verified.': 'រក្សាព័ត៌មានអាជីវកម្មឱ្យច្បាស់ និងជាព័ត៌មានរាយការណ៍ដោយខ្លួនឯង រហូតដល់បានផ្ទៀងផ្ទាត់។',
-  'Preview the record and confirmation flow before connecting a real bot.': 'មើលជាមុនដំណើរការកត់ត្រា និងបញ្ជាក់ មុនពេលភ្ជាប់ bot ពិតប្រាកដ។',
-  'Products & inventory': 'ផលិតផល និងសារពើភ័ណ្ឌ',
-  'Stock levels are operational records, not financing eligibility.': 'កម្រិតស្តុកជាកំណត់ត្រាប្រតិបត្តិការ មិនមែនលក្ខខណ្ឌមានសិទ្ធិទទួលហិរញ្ញប្បទានទេ។',
-  'No products yet': 'មិនទាន់មានផលិតផលទេ',
-  'Add products from your existing inventory workflow to see stock alerts here.': 'បន្ថែមផលិតផលពីដំណើរការសារពើភ័ណ្ឌដែលមានស្រាប់ ដើម្បីមើលការជូនដំណឹងស្តុកនៅទីនេះ។',
-  'Business profile': 'ព័ត៌មានអាជីវកម្ម',
-  'Funding need': 'តម្រូវការមូលនិធិ',
-  'Document checklist': 'បញ្ជីត្រួតពិនិត្យឯកសារ',
-  'Product comparison': 'ការប្រៀបធៀបផលិតផល',
-  'Review and download': 'ពិនិត្យ និងទាញយក',
-  'Save preparation details': 'រក្សាទុកព័ត៌មានរៀបចំ',
-  'Known checklist': 'បញ្ជីត្រួតពិនិត្យដែលដឹង',
-  'Unknown requirements remain visible for provider confirmation.': 'លក្ខខណ្ឌដែលមិនទាន់ដឹង នឹងនៅតែបង្ហាញសម្រាប់បញ្ជាក់ជាមួយអ្នកផ្តល់សេវា។',
-  'Requested amount': 'ចំនួនទឹកប្រាក់ដែលស្នើសុំ',
-  'Funding purpose': 'គោលបំណងមូលនិធិ',
-  'Timing': 'ពេលវេលា',
-  'Working capital': 'ទុនបង្វិល',
-  'Inventory purchase': 'ទិញសារពើភ័ណ្ឌ',
-  'Equipment': 'បរិក្ខារ',
-  'Business expansion': 'ពង្រីកអាជីវកម្ម',
-  'Within 3 months': 'ក្នុងរយៈពេល ៣ ខែ',
-  'Within 6 months': 'ក្នុងរយៈពេល ៦ ខែ',
-  'Exploring only': 'កំពុងស្វែងយល់ប៉ុណ្ណោះ',
-  'Save business profile': 'រក្សាទុកព័ត៌មានអាជីវកម្ម',
-  'Self-reported information': 'ព័ត៌មានដែលរាយការណ៍ដោយខ្លួនឯង',
-  'Informal business': 'អាជីវកម្មមិនទាន់ចុះបញ្ជី',
-  'Registered': 'បានចុះបញ្ជី',
-  'Not provided': 'មិនទាន់ផ្តល់',
-  'Not available': 'មិនមាន',
-  'Available': 'មាន',
-  'Mark available': 'សម្គាល់ថាមាន',
-  'Mark unavailable': 'សម្គាល់ថាមិនមាន',
-  'Draft — not submitted': 'សេចក្តីព្រាង — មិនទាន់ដាក់ស្នើ',
-  'Create draft pack': 'បង្កើតសេចក្តីព្រាង',
-  'No preparation packs yet': 'មិនទាន់មានកញ្ចប់រៀបចំទេ',
-  'Sale': 'ការលក់',
-  'Expense': 'ចំណាយ',
-  'Record activity': 'កត់ត្រាសកម្មភាព',
-  'Review record': 'ពិនិត្យកំណត់ត្រា',
-  'Confirm record': 'បញ្ជាក់កំណត់ត្រា',
-  'Back': 'ត្រឡប់ក្រោយ',
-  'Record sale': 'កត់ត្រាការលក់',
-  'Record expense': 'កត់ត្រាចំណាយ',
-  'Daily summary': 'សេចក្តីសង្ខេបប្រចាំថ្ងៃ',
-  'Stock check': 'ពិនិត្យស្តុក',
-  'Financing checklist': 'បញ្ជីត្រួតពិនិត្យហិរញ្ញប្បទាន',
-  'Funding need': 'តម្រូវការមូលនិធិ',
-  'Create workspace': 'បង្កើតកន្លែងធ្វើការ',
-  'Sign in': 'ចូលប្រើ',
-  'Your name': 'ឈ្មោះរបស់អ្នក',
-  'Business name': 'ឈ្មោះអាជីវកម្ម',
-  'Email': 'អ៊ីមែល',
-  'Password': 'ពាក្យសម្ងាត់',
-  'Private workspace': 'កន្លែងធ្វើការឯកជន',
-  'Self-reported until verified': 'រាយការណ៍ដោយខ្លួនឯង រហូតដល់បានផ្ទៀងផ្ទាត់',
-  'Simulated conversation': 'ការសន្ទនាសាកល្បង',
-  'Shortcuts': 'ផ្លូវកាត់',
+// Shared translation API used by the application and workspace forms.
+import en from '../locales/en.json' with { type: 'json' };
+import km from '../locales/km.json' with { type: 'json' };
+import sourceKeys from '../locales/sourceKeys.json' with { type: 'json' };
+export const LANGUAGE_PREFERENCE_KEY = 'kottraluy-language';
+const normalizeLanguage = value => value === 'km' ? 'km' : 'en';
+let currentLanguage = 'en';
+try { currentLanguage = normalizeLanguage(globalThis.localStorage?.getItem(LANGUAGE_PREFERENCE_KEY)); } catch { /* Preferences work in memory when storage is unavailable. */ }
+const languageListeners = new Set();
+const reportedMissing = new Set();
+const reverseMessages = new Map(Object.entries(km).map(([key,value]) => [value,key]));
+const has = (object,key) => Object.hasOwn(object,key);
+export const getLanguage = () => currentLanguage;
+export const getLocale = (language = currentLanguage) => language === 'km' ? 'km-KH' : 'en-US';
+export function setLanguage(language) {
+  currentLanguage = normalizeLanguage(language);
+  try { globalThis.localStorage?.setItem(LANGUAGE_PREFERENCE_KEY, currentLanguage); } catch { /* Retain in-memory selection. */ }
+  applyLanguage();
+  languageListeners.forEach(listener => listener(currentLanguage));
+}
+function applyLanguage() {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = currentLanguage;
+  document.title = t('common.app_title');
+  document.querySelectorAll('input,select,textarea').forEach(control => { if (control.validity.customError) validateControl(control); });
+}
+if (typeof window !== 'undefined') {
+  applyLanguage();
+  window.addEventListener('storage', event => {
+    if (event.key !== LANGUAGE_PREFERENCE_KEY && event.key !== null) return;
+    currentLanguage = normalizeLanguage(event.newValue); applyLanguage();
+    languageListeners.forEach(listener => listener(currentLanguage));
+  });
+}
+export function subscribeLanguage(listener) { languageListeners.add(listener); return () => languageListeners.delete(listener); }
+function missing(key, language) {
+  const id = `${language}:${key}`;
+  if (!reportedMissing.has(id)) { reportedMissing.add(id); console.error(`[i18n] Missing translation: ${id}`); }
+  return `[missing:${id}]`;
+}
+export function t(key, params = {}, language = currentLanguage) {
+  const dictionary = language === 'km' ? km : en;
+  const pluralKey = typeof params.count === 'number' ? `${key}_${new Intl.PluralRules(getLocale(language)).select(params.count)}` : key;
+  const resolved = has(dictionary,pluralKey) ? pluralKey : key;
+  if (!has(dictionary,resolved)) return missing(key,language);
+  return dictionary[resolved].replace(/\{(\w+)\}/g, (match, name) => params[name] ?? match);
+}
+export function text(value, language = currentLanguage) {
+  if (value == null) return '';
+  const literal = String(value);
+  if (has(en,literal)) return t(literal,{},language);
+  const key = sourceKeys[literal];
+  if (key) return t(key, {}, language);
+  if (!literal.trim() || /^(?:USD|KHR|KotTraLuy|Telegram|English|EN|ខ្មែរ|[\d\s.,%+−—·/():-]+)$/.test(literal)) return literal;
+  return missing(literal,language);
+}
+// Only enums from the application are localized here; original business records stay intact.
+const domainKeys = { unknown:'common.unknown', official_source_reviewed:'common.official_source_reviewed',
+  requirements_need_confirmation:'common.requirements_need_confirmation', source_requires_manual_confirmation:'common.manual_confirmation_needed' };
+export const domainLabel = value => domainKeys[value] ? t(domainKeys[value]) : sourceKeys[value] || has(en,value) ? text(value) : String(value ?? '');
+const errorCodes = {
+  network_error:'validation.network', invalid_response:'validation.invalid_response', api_unavailable:'validation.server',
+  password_change_required:'validation.password_required', unauthenticated:'validation.authentication',
+  authentication_failed:'auth.invalid_credentials', forbidden:'validation.permission',
+  validation_failed:'validation.invalid', insufficient_stock:'expiration.insufficient_stock',
 };
-
-const reverseDictionary = Object.fromEntries(Object.entries(dictionary).map(([english, khmer]) => [khmer, english]));
-
-function translateText(value, language) {
-  const text = value.trim();
-  if (language === 'km') {
-    if (dictionary[text]) return value.replace(text, dictionary[text]);
-    const match = text.match(/^(\d+) of (\d+) preparation items available$/);
-    if (match) return value.replace(text, `${match[1]} ក្នុងចំណោម ${match[2]} ធាតុរៀបចំដែលមាន`);
-    return value;
+export function messageText(value, language = currentLanguage) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    if (has(en,value) || sourceKeys[value]) return text(value,language);
+    const key = reverseMessages.get(value);
+    if (key) return t(key,{},language);
+    if (/credentials|password is incorrect|password is invalid/i.test(value)) return t('auth.invalid_credentials',{},language);
+    if (/field is required/i.test(value)) return t('validation.required',{},language);
+    if (/valid email/i.test(value)) return t('validation.email',{},language);
+    if (/has already been taken/i.test(value)) return t('validation.already_taken',{},language);
+    if (/confirmation does not match/i.test(value)) return t('validation.confirmation',{},language);
+    if (/must be at least (\d+) characters/i.test(value)) return t('validation.too_short',{min:value.match(/at least (\d+)/i)[1]},language);
+    return t('validation.request_failed',{},language);
   }
-  if (reverseDictionary[text]) return value.replace(text, reverseDictionary[text]);
-  const match = text.match(/^(\d+) ក្នុងចំណោម (\d+) ធាតុរៀបចំដែលមាន$/);
-  if (match) return value.replace(text, `${match[1]} of ${match[2]} preparation items available`);
-  return value;
+  if (value.key && has(en,value.key)) return t(value.key,value.params || {},language);
+  const mapped = errorCodes[value.code];
+  if (mapped) return t(mapped,{},language);
+  if (value.status === 401) return t('validation.authentication',{},language);
+  if (value.status === 403) return t('validation.authorization',{},language);
+  if (value.status === 404) return t('validation.not_found',{},language);
+  if (value.status === 429) return t('validation.rate_limit',{},language);
+  if (value.status >= 500) return t('validation.server',{},language);
+  const errors = value.errors ? Object.values(value.errors).flat() : [];
+  if (errors.length) return errors.map(error => messageText(error,language)).join(' ');
+  return messageText(value.message || 'validation.request_failed',language);
 }
-
-export function translatePage(language) {
-  const root = document.getElementById('root');
-  if (!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  let node;
-  while ((node = walker.nextNode())) nodes.push(node);
-  nodes.forEach((textNode) => {
-    if (textNode.parentElement?.closest('script,style')) return;
-    textNode.nodeValue = translateText(textNode.nodeValue, language);
-  });
-  root.querySelectorAll('input[placeholder], textarea[placeholder], [aria-label]').forEach((element) => {
-    ['placeholder', 'aria-label'].forEach((attribute) => {
-      if (element.hasAttribute(attribute)) element.setAttribute(attribute, translateText(element.getAttribute(attribute), language));
-    });
-  });
+export function clearControlValidation(event) { (event?.target || event)?.setCustomValidity?.(''); }
+export function validateControl(event) {
+  const control = event?.target || event;
+  if (!control?.validity) return;
+  control.setCustomValidity('');
+  if (control.validity.valueMissing) control.setCustomValidity(t('validation.required'));
+  else if (control.validity.typeMismatch) control.setCustomValidity(t('validation.type_mismatch'));
+  else if (control.validity.tooShort) control.setCustomValidity(t('validation.too_short',{min:control.minLength}));
+  else if (control.validity.rangeUnderflow) control.setCustomValidity(t('validation.minimum',{min:control.min}));
+  else if (control.validity.rangeOverflow) control.setCustomValidity(t('validation.maximum',{max:control.max}));
+  else if (!control.validity.valid) control.setCustomValidity(t('validation.invalid'));
 }
+export function formatDate(value, language = currentLanguage) {
+  if (!value) return '—';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return language === 'km' ? t('common.calendar_date',{day:date.getDate(),month:t(`common.month.${date.getMonth()+1}`,{},language),year:date.getFullYear()},language) : date.toLocaleDateString(getLocale(language));
+}
+export function formatDateTime(value, language = currentLanguage) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : language === 'km' ? t('common.date_time',{date:formatDate(value,language),time:formatTime(value,language)},language) : date.toLocaleString(getLocale(language));
+}
+export const formatTime = (value, language = currentLanguage) => new Date(value).toLocaleTimeString(getLocale(language),{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});

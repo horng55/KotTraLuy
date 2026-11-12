@@ -1,0 +1,23 @@
+{
+    "version":  "2.0.0",
+    "tasks":  [
+                  {
+                      "label":  "Reports: verification API",
+                      "type":  "shell",
+                      "command":  "$env:APP_ENV=\u0027testing\u0027; $env:DB_CONNECTION=\u0027sqlite\u0027; $env:DB_DATABASE=Join-Path (Get-Location) \u0027backend/storage/framework/testing/financial-report-verification.sqlite\u0027; $env:DB_URL=\u0027\u0027; $env:CACHE_STORE=\u0027array\u0027; $env:SESSION_DRIVER=\u0027array\u0027; if (!(Test-Path -LiteralPath $env:DB_DATABASE)) { New-Item -ItemType File -Path $env:DB_DATABASE | Out-Null; php backend/artisan migrate --force; if ($LASTEXITCODE -ne 0) { throw \u0027Verification migrations failed\u0027 } }; php -S 127.0.0.1:8016 -t backend/public backend/public/router.php",
+                      "isBackground":  true,
+                      "problemMatcher":  [
+
+                                         ]
+                  },
+                  {
+                      "label":  "Reports: verification web",
+                      "type":  "shell",
+                      "command":  "$env:API_PROXY_TARGET=\u0027http://127.0.0.1:8016\u0027; npm --prefix frontend run dev -- --host 127.0.0.1 --port 5176 --strictPort",
+                      "isBackground":  true,
+                      "problemMatcher":  [
+
+                                         ]
+                  }
+              ]
+}

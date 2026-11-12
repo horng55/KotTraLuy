@@ -56,4 +56,9 @@ class Product extends Model
     {
         return $this->hasMany(WasteRecord::class);
     }
+
+    public function batches(): HasMany
+    {
+        return $this->hasMany(StockBatch::class);
+    }
 }

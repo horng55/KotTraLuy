@@ -1,3 +1,5 @@
+import { messageText } from '../lib/i18n';
+import { t as tr } from '../lib/i18n';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 
@@ -8,14 +10,14 @@ export default function ShiftPanel({ user }) {
   const [ownerShift, setOwnerShift] = useState('A');
 
   const loadShifts = async () => {
-    try { setShifts(await apiFetch('/shifts')); } catch (error) { setMessage(error.message); }
+    try { setShifts(await apiFetch('/shifts')); } catch (error) { setMessage(error); }
   };
 
   useEffect(() => {
     let active = true;
     apiFetch('/shifts')
       .then((data) => { if (active) setShifts(data); })
-      .catch((error) => { if (active) setMessage(error.message); });
+      .catch((error) => { if (active) setMessage(error); });
 
     return () => { active = false; };
   }, []);
@@ -30,7 +32,7 @@ export default function ShiftPanel({ user }) {
     try {
       await apiFetch('/shifts', { method: 'POST', body: JSON.stringify({ shift_type: shiftType, opening_cash: 0 }) });
       setMessage(`Shift ${shiftType} started.`); await loadShifts();
-    } catch (error) { setMessage(error.message); } finally { setLoading(false); }
+    } catch (error) { setMessage(error); } finally { setLoading(false); }
   };
 
   const closeShift = async () => {
@@ -38,20 +40,20 @@ export default function ShiftPanel({ user }) {
     try {
       await apiFetch(`/shifts/${openShift.id}/close`, { method: 'POST', body: JSON.stringify({}) });
       setMessage('Shift closed.'); await loadShifts();
-    } catch (error) { setMessage(error.message); } finally { setLoading(false); }
+    } catch (error) { setMessage(error); } finally { setLoading(false); }
   };
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-lg font-semibold">My shift</h2><p className="text-sm text-slate-600">Sales from Telegram are attached to your open shift.</p></div>
-        {openShift ? <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Shift {openShift.shift_type} open</span> : <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">No open shift</span>}
+        <div><h2 className="text-lg font-semibold">{tr("team.my_shift")}</h2><p className="text-sm text-[var(--text-secondary)]">{tr("sales.sales_from_telegram_are_attached_to_your_open_shift")}</p></div>
+        {openShift ? <span className="rounded-full bg-[var(--surface-accent)] px-3 py-1 text-sm font-semibold text-[var(--accent-foreground)]">{tr("team.shift_open",{shift:openShift.shift_type})}</span> : <span className="rounded-full bg-[var(--surface-subtle)] px-3 py-1 text-sm text-[var(--text-secondary)]">{tr("team.no_open_shift")}</span>}
       </div>
       <div className="mt-4 flex items-center gap-3">
-        {!openShift && user.role === 'owner' && <select value={ownerShift} onChange={(e) => setOwnerShift(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2"><option value="A">Shift A</option><option value="B">Shift B</option></select>}
-        <button type="button" disabled={loading} onClick={openShift ? closeShift : startShift} className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60 ${openShift ? 'bg-rose-600' : 'bg-emerald-600'}`}>{loading ? 'Please wait...' : openShift ? 'Close shift' : `Start Shift ${shiftType}`}</button>
+        {!openShift && user.role === 'owner' && <select value={ownerShift} onChange={(e) => setOwnerShift(e.target.value)} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="A">{tr("team.shift_a")}</option><option value="B">{tr("team.shift_b")}</option></select>}
+        <button type="button" disabled={loading} onClick={openShift ? closeShift : startShift} className={`rounded-lg px-4 py-2 text-sm font-medium text-[var(--on-primary)] disabled:opacity-60 ${openShift ? 'bg-[var(--danger-solid)]' : 'bg-[var(--brand-primary)]'}`}>{loading ? tr("common.please_wait") : openShift ? tr("team.close_shift") : tr("team.start_shift",{shift:shiftType})}</button>
       </div>
-      {message && <p className="mt-3 text-sm text-slate-700">{message}</p>}
+      {message && <p className="mt-3 text-sm text-[var(--text-secondary)]">{messageText(message)}</p>}
     </section>
   );
 }

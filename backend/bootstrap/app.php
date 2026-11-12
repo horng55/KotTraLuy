@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+        $schedule->command('inventory:refresh-alerts')->hourly()->withoutOverlapping();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         // The SPA authenticates API requests with Sanctum bearer tokens.
         // Do not enable stateful cookie authentication here: doing so applies

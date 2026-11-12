@@ -28,6 +28,17 @@ class WasteController
         }
 
         $record = DB::transaction(function () use ($request, $product, $data, $shiftId) {
+            \App\Models\Business::whereKey($product->business_id)->lockForUpdate()->firstOrFail();
+            $product = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
+            if ($product->stock_quantity < $data['quantity']) throw \Illuminate\Validation\ValidationException::withMessages(['quantity'=>['Waste quantity exceeds available stock.']]);
+            \App\Services\BatchInventory::preserveLegacy($product);
+            $remaining = $data['quantity'];
+            foreach ($product->batches()->where('quantity_remaining','>',0)->orderByRaw('expiry_date IS NULL, expiry_date ASC')->lockForUpdate()->get() as $batch) {
+                $take = min($remaining,$batch->quantity_remaining);
+                $batch->decrement('quantity_remaining',$take); $remaining -= $take;
+                if (!$remaining) break;
+            }
+            if ($remaining) throw \Illuminate\Validation\ValidationException::withMessages(['quantity'=>['Waste quantity exceeds available stock.']]);
             $record = WasteRecord::create([
                 'business_id' => $request->user()->business_id,
                 'shift_id' => $shiftId,

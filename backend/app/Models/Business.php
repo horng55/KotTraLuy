@@ -26,7 +26,7 @@ class Business extends Model
         'status',
     ];
 
-    protected $casts = ['operating_started_on' => 'date'];
+    protected $casts = ['operating_started_on' => 'date', 'expiry_warning_days' => 'integer', 'daily_digest_enabled' => 'boolean', 'notification_preferences' => 'array'];
 
     public function users(): BelongsToMany
     {

@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Business;
+use App\Models\User;
+use App\Models\WorkspaceNotification;
+use Illuminate\Support\Str;
+
+class WorkspaceNotifier
+{
+    public const TYPES = [
+        'sale.created' => ['sales', 'records'],
+        'sale.updated' => ['sales', 'records'],
+        'sale.deleted' => ['sales', 'records'],
+        'sale.unpaid' => ['sales', 'records'],
+        'payment.received' => ['sales', 'records'],
+        'inventory.low_stock' => ['inventory', 'alerts'],
+        'inventory.out_of_stock' => ['inventory', 'alerts'],
+        'inventory.expiring_soon' => ['inventory', 'inventory'],
+        'inventory.expires_today' => ['inventory', 'inventory'],
+        'inventory.expired' => ['inventory', 'inventory'],
+        'expense.created' => ['expenses', 'records'],
+        'team.created' => ['team', 'more'],
+        'team.activated' => ['team', 'more'],
+        'team.deactivated' => ['team', 'more'],
+        'telegram.connected' => ['team', 'telegram'],
+        'telegram.disconnected' => ['team', 'telegram'],
+        'pack.created' => ['financing', 'packs'],
+        'business.incomplete' => ['financing', 'business'],
+        'security.password_changed' => ['system', 'more'],
+        'security.password_reset' => ['system', 'more'],
+    ];
+
+    public function publish(int $businessId, string $type, string $eventKey, array $params, ?string $entityType = null, int|string|null $entityId = null, array $additionalRecipients = [], bool $owners = true): void
+    {
+        if (!isset(self::TYPES[$type])) {
+            throw new \InvalidArgumentException('Unsupported notification type.');
+        }
+
+        $recipients = User::where('business_id', $businessId)->where(function ($query) use ($owners, $additionalRecipients) {
+            if ($owners) {
+                $query->where(fn ($owner) => $owner->where('role', 'owner')->where('status', 'active'));
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+            $query->orWhereIn('id', array_filter($additionalRecipients));
+        })->get();
+
+        foreach ($recipients as $recipient) {
+            WorkspaceNotification::firstOrCreate([
+                'business_id' => $businessId,
+                'notifiable_type' => $recipient->getMorphClass(),
+                'notifiable_id' => $recipient->id,
+                'event_key' => $eventKey,
+            ], [
+                'id' => (string) Str::uuid(),
+                'type' => $type,
+                'owner_only' => !in_array((int) $recipient->id, array_map('intval', $additionalRecipients), true),
+                'data' => [
+                    'key' => $type,
+                    'category' => self::TYPES[$type][0],
+                    'params' => $params,
+                    'entity_type' => $entityType,
+                    'entity_id' => $entityId,
+                    'action_page' => self::TYPES[$type][1],
+                ],
+            ]);
+        }
+    }
+
+    public function profileIncomplete(Business $business): void
+    {
+        $missing = collect(['name', 'activity', 'province'])->filter(fn ($field) => blank($business->$field))->values()->all();
+        if ($missing) {
+            $this->publish($business->id, 'business.incomplete', 'business.incomplete:'.$business->id.':'.hash('sha256', implode(',', $missing)), ['missing_fields' => $missing], 'business', $business->id);
+        }
+    }
+}

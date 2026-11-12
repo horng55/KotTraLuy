@@ -4,6 +4,8 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Console\Command\Command;
+use App\Models\Business;
+use App\Services\InventoryAlertService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -58,3 +60,8 @@ Artisan::command('telegram:configure', function () {
 
     return Command::SUCCESS;
 })->purpose('Configure the Telegram webhook and stable Mini App menu button');
+
+Artisan::command('inventory:refresh-alerts', function (InventoryAlertService $alerts) {
+    Business::where('status', 'active')->each(fn ($business) => $alerts->refresh($business));
+    $this->info('Inventory alerts refreshed.');
+})->purpose('Refresh expiry and stock alerts for every active business');

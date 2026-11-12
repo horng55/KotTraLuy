@@ -104,6 +104,7 @@ class TelegramBotController
             return 'Telegram access is disabled for your account. Ask the business owner to enable it.';
         }
 
+        \App\Models\Business::whereKey($user->business_id)->lockForUpdate()->firstOrFail();
         $trimmed = Str::lower($text);
         $reply = null;
 
@@ -132,37 +133,10 @@ class TelegramBotController
                 ->exists()) {
                 $reply = 'Open your assigned shift before recording a Telegram sale.';
             } else {
-                DB::transaction(function () use ($user, $product, $quantity, $unitPrice) {
-                    $openShiftId = Shift::where('business_id', $user->business_id)
-                        ->where('user_id', $user->id)
-                        ->where('status', 'open')
-                        ->value('id');
-
-                    $sale = Sale::create([
-                        'business_id' => $user->business_id,
-                        'shift_id' => $openShiftId,
-                        'user_id' => $user->id,
-                        'sale_no' => 'TG-SALE-'.now()->timestamp,
-                        'sold_at' => now(),
-                        'total_amount' => 0,
-                        'notes' => 'Telegram bot sale',
-                    ]);
-
-                    $lineTotal = $quantity * $unitPrice;
-                    $sale->items()->create([
-                        'product_id' => $product->id,
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                        'unit_cost_snapshot' => $product->default_cost ?? 0,
-                        'line_total' => $lineTotal,
-                    ]);
-
-                    $product->stock_quantity = (int) $product->stock_quantity - $quantity;
-                    $product->save();
-
-                    $sale->total_amount = $lineTotal;
-                    $sale->save();
-                });
+                $inventoryRequest = \Illuminate\Http\Request::create('/api/inventory', 'POST', ['sold_at'=>now()->toIso8601String(),'currency'=>$user->business->currency,'items'=>[['product_id'=>$product->id,'quantity'=>$quantity,'unit_price'=>$unitPrice]]]);
+                $inventoryRequest->setUserResolver(fn () => $user);
+                try { app(SaleController::class)->store($inventoryRequest); }
+                catch (\Illuminate\Validation\ValidationException $failure) { return implode(' ', \Illuminate\Support\Arr::flatten($failure->errors())); }
 
                 $reply = "Sale recorded successfully for {$quantity} {$product->name}.";
             }
@@ -182,37 +156,10 @@ class TelegramBotController
             if (! $product) {
                 $reply = "Product '{$productName}' was not found in your business stock.";
             } else {
-                DB::transaction(function () use ($user, $product, $quantity, $unitCost) {
-                    $openShiftId = Shift::where('business_id', $user->business_id)
-                        ->where('user_id', $user->id)
-                        ->where('status', 'open')
-                        ->value('id');
-
-                    $purchase = Purchase::create([
-                        'business_id' => $user->business_id,
-                        'shift_id' => $openShiftId,
-                        'user_id' => $user->id,
-                        'supplier_name' => 'Telegram Bot',
-                        'purchase_date' => now()->toDateString(),
-                        'reference_no' => 'TG-PUR-'.now()->timestamp,
-                        'notes' => 'Telegram bot purchase',
-                        'total_amount' => 0,
-                    ]);
-
-                    $lineTotal = $quantity * $unitCost;
-                    $purchase->items()->create([
-                        'product_id' => $product->id,
-                        'quantity' => $quantity,
-                        'unit_cost' => $unitCost,
-                        'line_total' => $lineTotal,
-                    ]);
-
-                    $product->stock_quantity = (int) $product->stock_quantity + $quantity;
-                    $product->save();
-
-                    $purchase->total_amount = $lineTotal;
-                    $purchase->save();
-                });
+                $inventoryRequest = \Illuminate\Http\Request::create('/api/inventory', 'POST', ['purchase_date'=>now()->toDateString(),'items'=>[['product_id'=>$product->id,'quantity'=>$quantity,'unit_cost'=>$unitCost]]]);
+                $inventoryRequest->setUserResolver(fn () => $user);
+                try { app(PurchaseController::class)->store($inventoryRequest); }
+                catch (\Illuminate\Validation\ValidationException $failure) { return implode(' ', \Illuminate\Support\Arr::flatten($failure->errors())); }
 
                 $reply = "Purchase recorded successfully for {$quantity} {$product->name}.";
             }
@@ -234,27 +181,10 @@ class TelegramBotController
             } elseif ($product->stock_quantity < $quantity) {
                 $reply = "Waste quantity exceeds available stock for {$product->name}.";
             } else {
-                DB::transaction(function () use ($user, $product, $quantity, $reason) {
-                    $openShiftId = Shift::where('business_id', $user->business_id)
-                        ->where('user_id', $user->id)
-                        ->where('status', 'open')
-                        ->value('id');
-
-                    WasteRecord::create([
-                        'business_id' => $user->business_id,
-                        'shift_id' => $openShiftId,
-                        'user_id' => $user->id,
-                        'product_id' => $product->id,
-                        'quantity' => $quantity,
-                        'unit_cost_snapshot' => $product->default_cost ?? 0,
-                        'reason' => $reason,
-                        'notes' => 'Telegram bot waste',
-                        'recorded_at' => now(),
-                    ]);
-
-                    $product->stock_quantity = (int) $product->stock_quantity - $quantity;
-                    $product->save();
-                });
+                $inventoryRequest = \Illuminate\Http\Request::create('/api/inventory', 'POST', ['product_id'=>$product->id,'quantity'=>$quantity,'reason'=>$reason]);
+                $inventoryRequest->setUserResolver(fn () => $user);
+                try { app(WasteController::class)->store($inventoryRequest); }
+                catch (\Illuminate\Validation\ValidationException $failure) { return implode(' ', \Illuminate\Support\Arr::flatten($failure->errors())); }
 
                 $reply = "Waste recorded successfully for {$quantity} {$product->name}.";
             }

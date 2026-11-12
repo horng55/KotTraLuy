@@ -1,155 +1,33 @@
+import { messageText } from '../lib/i18n';
+import { t as tr } from '../lib/i18n';
 import { useEffect, useState } from 'react';
+import { CheckCircle2, KeyRound, Pencil, Plus, Power, Search, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import TeamMemberDialog from './TeamMemberDialog';
 
-const emptyForm = { name: '', username: '', password: '', role: 'staff', assigned_shift: 'A', telegram_enabled: false };
-
-export default function UserManagementPanel() {
-  const [users, setUsers] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
+export default function UserManagementPanel({ currentUser }) {
+  const [users, setUsers] = useState(null);
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-
-  const loadUsers = async () => {
-    try {
-      setUsers(await apiFetch('/users'));
-    } catch (error) {
-      setMessage(error.message);
-    }
-  };
-
-  useEffect(() => {
-    let active = true;
-    apiFetch('/users')
-      .then((data) => { if (active) setUsers(data); })
-      .catch((error) => { if (active) setMessage(error.message); });
-
-    return () => { active = false; };
-  }, []);
-
-  const createUser = async (event) => {
-    event.preventDefault();
-    setLoading(true);
-    setMessage('');
-    try {
-      await apiFetch('/users', { method: 'POST', body: JSON.stringify(form) });
-      setForm(emptyForm);
-      setMessage('User created. Give the temporary password to the employee securely.');
-      await loadUsers();
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateUser = async (user, changes) => {
-    setMessage('');
-    try {
-      await apiFetch(`/users/${user.id}`, { method: 'PATCH', body: JSON.stringify(changes) });
-      await loadUsers();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  };
-
-  const toggleStatus = async (user) => {
-    const nextStatus = user.status === 'active' ? 'inactive' : 'active';
-    if (!window.confirm(`${nextStatus === 'inactive' ? 'Deactivate' : 'Activate'} ${user.name}?`)) return;
-    try {
-      await apiFetch(`/users/${user.id}/status`, {
-        method: 'POST',
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      await loadUsers();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  };
-
-  const resetPassword = async (user) => {
-    const password = window.prompt(`Enter a temporary password for ${user.name} (minimum 8 characters):`);
-    if (!password) return;
-    try {
-      await apiFetch(`/users/${user.id}/reset-password`, {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-      });
-      setMessage(`Password reset for ${user.name}. Their existing sessions were revoked.`);
-      await loadUsers();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  };
-
-  return (
-    <section className="panel mt-3 rounded-[10px] p-[18px] shadow-sm">
-      <div className="mb-[18px]">
-        <h2 className="font-['Space_Grotesk'] text-[15px] font-semibold text-[#152830]">User management</h2>
-        <p className="mt-1 text-[11px] leading-[1.4] text-[#758a93]">Create individual accounts and assign staff to Shift A or B.</p>
-      </div>
-
-      <form onSubmit={createUser} className="grid gap-3 rounded-[9px] bg-[#f4f7f7] p-3 md:grid-cols-2 xl:grid-cols-5">
-        <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className="rounded-[6px] border border-[#d5e1e3] bg-white px-3 py-2 text-[12px] text-[#26434e]" />
-        <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Username" className="rounded-[6px] border border-[#d5e1e3] bg-white px-3 py-2 text-[12px] text-[#26434e]" />
-        <input required minLength="8" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Temporary password" className="rounded-[6px] border border-[#d5e1e3] bg-white px-3 py-2 text-[12px] text-[#26434e]" />
-        <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="rounded-[6px] border border-[#d5e1e3] bg-white px-3 py-2 text-[12px] text-[#26434e]">
-          <option value="staff">Staff</option>
-          <option value="owner">Owner</option>
-        </select>
-        {form.role === 'staff' ? (
-          <>
-            <select value={form.assigned_shift} onChange={(e) => setForm({ ...form, assigned_shift: e.target.value })} className="rounded-[6px] border border-[#d5e1e3] bg-white px-3 py-2 text-[12px] text-[#26434e]">
-              <option value="A">Shift A</option>
-              <option value="B">Shift B</option>
-            </select>
-            <label className="flex items-center gap-2 rounded-[6px] border border-[#d5e1e3] bg-white px-3 py-2 text-[12px] text-[#26434e]">
-              <input type="checkbox" checked={form.telegram_enabled} onChange={(e) => setForm({ ...form, telegram_enabled: e.target.checked })} />
-              Telegram sales access
-            </label>
-          </>
-        ) : <div />}
-        <button disabled={loading} className="rounded-[6px] bg-[#005e2a] px-4 py-2 text-[12px] font-bold text-white disabled:opacity-60 md:col-span-2 xl:col-span-5">
-          {loading ? 'Creating...' : 'Create user'}
-        </button>
-      </form>
-
-      {message && <p className="mt-3 text-[11px] text-[#47616c]">{message}</p>}
-
-      <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-[11px]">
-          <thead className="border-b border-[#dfe8e9] text-[#6f838b]">
-            <tr><th className="p-3 font-bold">Name</th><th className="p-3 font-bold">Username</th><th className="p-3 font-bold">Role</th><th className="p-3 font-bold">Shift</th><th className="p-3 font-bold">Telegram</th><th className="p-3 font-bold">Status</th><th className="p-3 font-bold">Actions</th></tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-slate-100">
-                <td className="p-3 font-medium text-[#29434e]">{user.name}</td>
-                <td className="p-3">{user.username || 'Email login'}</td>
-                <td className="p-3">
-                  <select value={user.role} onChange={(e) => updateUser(user, { role: e.target.value, assigned_shift: e.target.value === 'staff' ? (user.assigned_shift || 'A') : null })} className="rounded border border-[#d5e1e3] px-2 py-1 text-[11px] text-[#26434e]">
-                    <option value="owner">Owner</option><option value="staff">Staff</option>
-                  </select>
-                </td>
-                <td className="p-3">
-                  {user.role === 'staff' ? (
-                    <select value={user.assigned_shift || 'A'} onChange={(e) => updateUser(user, { assigned_shift: e.target.value })} className="rounded border border-[#d5e1e3] px-2 py-1 text-[11px] text-[#26434e]">
-                      <option value="A">Shift A</option><option value="B">Shift B</option>
-                    </select>
-                  ) : 'Any'}
-                </td>
-                <td className="p-3">{user.role === 'staff' ? <label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={Boolean(user.telegram_enabled)} onChange={(e) => updateUser(user, { telegram_enabled: e.target.checked })} /> Allow bot</label> : 'Owner access'}</td>
-                <td className="p-3"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${user.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{user.status}</span></td>
-                <td className="p-3">
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => resetPassword(user)} className="rounded border border-[#d5e1e3] px-2 py-1 text-[10px] text-[#47616c]">Reset password</button>
-                    <button type="button" onClick={() => toggleStatus(user)} className="rounded border border-[#d5e1e3] px-2 py-1 text-[10px] text-[#47616c]">{user.status === 'active' ? 'Deactivate' : 'Activate'}</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+  const [search, setSearch] = useState('');
+  const [role, setRole] = useState('');
+  const [shift, setShift] = useState('');
+  const [status, setStatus] = useState('');
+  const [dialog, setDialog] = useState(null);
+  const load = async () => { const data = await apiFetch('/users'); setUsers(data); };
+  useEffect(() => { let active = true; apiFetch('/users').then(data => { if (active) setUsers(data); }).catch(failure => { if (active) setError(failure); }); return () => { active = false; }; }, []);
+  const saved = async text => { await load(); setMessage(text); setError(''); };
+  const members = users || [];
+  const visible = members.filter(user => `${user.name} ${user.username || ''}`.toLowerCase().includes(search.toLowerCase()) && (!role || role === user.role) && (!shift || shift === user.assigned_shift) && (!status || status === user.status));
+  return <section id="settings-team" className="st-team"><header className="st-team-heading"><div><span className="st-eyebrow">{tr("common.people_permissions")}</span><h2>{tr("team.team_members")}</h2><p>{tr("team.manage_staff_accounts_roles_and_work_shifts")}</p></div><button className="st-button primary" onClick={() => setDialog({ mode: 'create' })}><Plus size={16} />{tr("team.add_team_member")}</button></header>
+    <div className="st-team-summary">{[[Users, tr("team.total_members"), members.length], [UserCheck, tr("team.active_members"), members.filter(user => user.status === 'active').length], [CheckCircle2, tr("team.staff"), members.filter(user => user.role === 'staff').length], [ShieldCheck, tr("common.administrators"), members.filter(user => user.role === 'owner').length]].map(([Icon, title, count]) => <article key={title}><Icon size={18} /><strong>{users ? count : '—'}</strong><span>{title}</span></article>)}</div>
+    {error && <div role="alert" className="st-error">{messageText(error)}<button className="st-text-button" onClick={() => { setError(''); load().catch(failure => setError(failure)); }}>{tr("common.retry")}</button></div>}
+    {message && <p className="st-success" role="status">{messageText(message)}</p>}
+    <div className="st-team-ledger"><div className="st-team-filters"><label className="st-team-search"><Search size={16} /><input aria-label={tr("team.search_staff")} placeholder={tr("common.search_by_name_or_username")} value={search} onChange={event => setSearch(event.target.value)} /></label><select aria-label={tr("team.filter_by_role")} value={role} onChange={event => setRole(event.target.value)}><option value="">{tr("team.all_roles")}</option><option value="owner">{tr("common.admin_owner")}</option><option value="staff">{tr("team.staff")}</option></select><select aria-label={tr("team.filter_by_shift")} value={shift} onChange={event => setShift(event.target.value)}><option value="">{tr("team.all_shifts")}</option><option value="A">{tr("team.shift_a")}</option><option value="B">{tr("team.shift_b")}</option></select><select aria-label={tr("common.filter_by_status")} value={status} onChange={event => setStatus(event.target.value)}><option value="">{tr("common.all_statuses")}</option><option value="active">{tr("common.active")}</option><option value="inactive">{tr("common.inactive")}</option></select></div>
+      <div className="st-table-scroll"><table><thead><tr>{[tr("common.name"), tr("common.username"), tr("team.role"), tr("team.shift"), tr("telegram.telegram_access"), tr("common.status"), tr("common.actions")].map(title => <th key={title}>{title}</th>)}</tr></thead><tbody>{visible.map(user => <tr key={user.id}><td><div className="st-member"><span className="st-avatar">{user.name?.slice(0, 2).toUpperCase()}</span><div><strong>{user.name}{user.id === currentUser?.id && <small className="st-you">{tr("common.you")}</small>}</strong><small>{user.must_change_password ? tr("auth.password_change_required") : tr("team.workspace_member")}</small></div></div></td><td>{user.username || tr("common.email_login")}</td><td><span className={`st-role ${user.role}`}>{user.role === 'owner' ? tr("common.admin_owner") : tr("team.staff")}</span></td><td>{user.role === 'owner' ? tr("team.all_shifts") : user.assigned_shift ? tr("team.shift_label",{shift:user.assigned_shift}) : tr("common.not_assigned_2")}</td><td><span className={user.telegram_enabled || user.role === 'owner' ? 'st-enabled' : 'st-muted'}>{user.role === 'owner' ? tr("common.owner_access") : user.telegram_enabled ? tr("common.enabled") : tr("common.disabled")}</span></td><td><span className={`st-status ${user.status}`}>{user.status === 'active' ? tr("common.active") : user.status === 'inactive' ? tr("common.inactive") : tr("common.unknown")}</span></td><td><div className="st-member-actions"><button aria-label={tr("common.edit_record",{reference:user.name})} title={tr("team.edit_member")} onClick={() => setDialog({ mode: 'edit', user })}><Pencil size={14} /></button><button aria-label={tr("team.reset_for",{name:user.name})} title={tr("auth.reset_password_2")} disabled={user.id === currentUser?.id} onClick={() => setDialog({ mode: 'reset', user })}><KeyRound size={14} /></button><button aria-label={tr(user.status === 'active' ? "common.deactivate_person" : "common.activate_person",{name:user.name})} title={user.status === 'active' ? tr("team.deactivate_member_2") : tr("team.activate_member_2")} disabled={user.id === currentUser?.id} onClick={() => setDialog({ mode: 'status', user })}><Power size={14} /></button></div></td></tr>)}</tbody></table></div>
+      {!visible.length && <div className="st-team-empty"><Users size={24} /><strong>{users == null ? error ? tr("team.team_members_could_not_be_loaded") : tr("team.loading_team_members") : members.length ? tr("team.no_matching_team_members") : tr("team.build_your_team")}</strong><p>{members.length ? tr("common.try_a_different_name_or_adjust_your_filters") : tr("team.create_individual_accounts_to_manage_roles_and_work_shifts")}</p></div>}
+      <div className="st-table-footer">{users ? tr("team.member_count",{count:visible.length,total:users.length}) : tr("settings.waiting_for_workspace_data")}<span>{tr("common.administrators_have_owner_permissions")}</span></div>
+    </div>
+    {dialog && <TeamMemberDialog key={`${dialog.mode}-${dialog.user?.id || 'new'}`} {...dialog} currentUser={currentUser} close={() => setDialog(null)} onSaved={saved} />}
+  </section>;
 }

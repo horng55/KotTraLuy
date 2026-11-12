@@ -64,7 +64,7 @@ class FinancingController
 
     public function updateBusiness(Request $request)
     {
-        $data = $request->validate(['name' => 'required|string|max:160', 'activity' => 'nullable|string|max:160', 'province' => 'nullable|string|max:120', 'operating_started_on' => 'nullable|date', 'registration_status' => 'required|in:unknown,informal,registered']);
+        $data = $request->validate(['name' => 'required|string|max:160', 'business_type' => 'nullable|string|max:120', 'activity' => 'nullable|string|max:160', 'province' => 'nullable|string|max:120', 'address' => 'nullable|string|max:500', 'phone' => 'nullable|string|max:60', 'currency' => 'nullable|in:USD,KHR', 'operating_started_on' => 'nullable|date', 'registration_status' => 'required|in:unknown,informal,registered']);
         $business = $request->user()->business;
         $business->update([...$data, 'profile_source' => 'self_reported']);
         return response()->json(['business' => $business->fresh()]);

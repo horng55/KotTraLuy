@@ -15,6 +15,7 @@ class WasteRecord extends Model
         'shift_id',
         'user_id',
         'product_id',
+        'stock_batch_id',
         'quantity',
         'unit_cost_snapshot',
         'reason',

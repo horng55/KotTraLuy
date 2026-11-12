@@ -19,12 +19,19 @@ class Sale extends Model
         'sale_no',
         'sold_at',
         'total_amount',
+        'discount_amount',
+        'payment_received',
+        'outstanding_balance',
+        'idempotency_key',
         'notes',
     ];
 
     protected $casts = [
         'sold_at' => 'datetime',
         'total_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'payment_received' => 'decimal:2',
+        'outstanding_balance' => 'decimal:2',
     ];
 
     public function business(): BelongsTo
@@ -45,5 +52,10 @@ class Sale extends Model
     public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(SalePayment::class);
     }
 }

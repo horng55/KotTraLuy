@@ -26,6 +26,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/change-password', [UserManagementController::class, 'changePassword']);
 
     Route::middleware('password.changed')->group(function () {
+        Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [\App\Http\Controllers\Api\NotificationController::class, 'count']);
+        Route::post('/notifications/read-all', [\App\Http\Controllers\Api\NotificationController::class, 'readAll']);
+        Route::patch('/notifications/{notification}/read', [\App\Http\Controllers\Api\NotificationController::class, 'read']);
+        Route::patch('/notifications/{notification}/unread', [\App\Http\Controllers\Api\NotificationController::class, 'unread']);
         Route::get('/users', [UserManagementController::class, 'index']);
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::patch('/users/{user}', [UserManagementController::class, 'update']);
@@ -37,9 +42,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
+        Route::get('/inventory-expiration', [\App\Http\Controllers\Api\ExpirationController::class, 'index']);
+        Route::put('/inventory-expiration/settings', [\App\Http\Controllers\Api\ExpirationController::class, 'settings']);
+        Route::patch('/stock-batches/{batch}', [\App\Http\Controllers\Api\ExpirationController::class, 'update']);
+        Route::post('/stock-batches/{batch}/dispose', [\App\Http\Controllers\Api\ExpirationController::class, 'dispose']);
         Route::apiResource('/products', ProductController::class);
         Route::apiResource('/purchases', PurchaseController::class);
         Route::apiResource('/sales', SaleController::class);
+        Route::post('/sales/{sale}/payments', [SaleController::class, 'addPayment']);
+        Route::get('/inventory-alerts', [ProductController::class, 'alerts']);
         Route::apiResource('/expenses', ExpenseController::class);
         Route::apiResource('/shifts', ShiftController::class);
         Route::post('/shifts/{shift}/close', [ShiftController::class, 'close']);
@@ -47,6 +58,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/reports/daily', [ReportController::class, 'daily']);
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+        Route::get('/reports/range', [ReportController::class, 'range']);
+        Route::get('/reports/range.csv', [ReportController::class, 'csv']);
+        Route::get('/reports/financial', [ReportController::class, 'financial']);
         Route::get('/financing/overview', [FinancingController::class, 'overview']);
         Route::get('/financing/products', [FinancingController::class, 'products']);
         Route::put('/financing/profile', [FinancingController::class, 'saveProfile']);

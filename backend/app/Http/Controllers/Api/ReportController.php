@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 
 class ReportController
 {
+    public function financial(Request $request, ReportService $reportService)
+    {
+        abort_unless($request->user()->business_id && $request->user()->status === 'active', 403);
+        $data = $request->validate(['from'=>'required|date_format:Y-m-d','to'=>'required|date_format:Y-m-d|after_or_equal:from','currency'=>'sometimes|required|in:USD,KHR']);
+        return response()->json($reportService->financialReport($request->user()->business, $data['from'], $data['to'], $data['currency'] ?? null));
+    }
     public function daily(Request $request, ReportService $reportService)
     {
         $date = $request->query('date', now()->toDateString());
@@ -19,5 +25,18 @@ class ReportController
         $month = $request->query('month', now()->format('Y-m'));
 
         return response()->json($reportService->monthlySummary($request->user()->business, $month));
+    }
+
+    public function range(Request $request, ReportService $reportService)
+    {
+        $data = $request->validate(['from'=>'required|date','to'=>'required|date|after_or_equal:from']);
+        return response()->json($reportService->rangeSummary($request->user()->business, $data['from'], $data['to']));
+    }
+
+    public function csv(Request $request, ReportService $reportService)
+    {
+        $data = $request->validate(['from'=>'required|date','to'=>'required|date|after_or_equal:from']);
+        $summary = $reportService->rangeSummary($request->user()->business, $data['from'], $data['to']);
+        return response()->streamDownload(function () use ($summary) { $out = fopen('php://output','w'); fputcsv($out,['Business Record Summary — Self-reported']); foreach ($summary as $key=>$value) fputcsv($out,[$key,$value]); fclose($out); }, 'kottraluy-business-summary.csv', ['Content-Type'=>'text/csv']);
     }
 }

@@ -53,6 +53,8 @@ class DashboardController
             ->sum(DB::raw('quantity * unit_cost_snapshot'));
 
         $totalRevenue = (float) $sales->sum('total_amount');
+        $paymentsReceived = (float) $sales->sum('payment_received');
+        $unpaidBalances = (float) $sales->sum('outstanding_balance');
         $salesCount = $sales->count();
 
         // ទាញយកបញ្ជីផលិតផលសម្រាប់ Dropdown Quick Sale / Purchase លើ Web
@@ -75,6 +77,8 @@ class DashboardController
             'purchaseValue' => round($purchases, 2),
             'waste' => round($waste, 2),
             'salesCount' => $salesCount,
+            'today_payments_received' => round($paymentsReceived, 2),
+            'today_unpaid_balances' => round($unpaidBalances, 2),
             'products' => $products,
 
             // Format ចាស់ (ការពារកុំឱ្យបាក់មុខងារផ្សេងទៀត)

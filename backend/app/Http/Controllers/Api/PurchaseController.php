@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Shift;
+use App\Models\StockBatch;
+use App\Services\InventoryAlertService;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -33,12 +36,16 @@ class PurchaseController
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_cost' => 'required|numeric|min:0',
+            'items.*.batch_code' => 'nullable|string|max:100',
+            'items.*.received_date' => 'nullable|date',
+            'items.*.expiry_date' => 'nullable|date_format:Y-m-d',
         ]);
 
         $shiftId = $this->resolveShiftId($request, $data['shift_id'] ?? null);
 
         $purchase = DB::transaction(function () use ($request, $data, $shiftId) {
             $business = $request->user()->business;
+            \App\Models\Business::whereKey($business->id)->lockForUpdate()->firstOrFail();
             $purchase = Purchase::create([
                 'business_id' => $business->id,
                 'currency' => $data['currency'] ?? $business->currency,
@@ -53,7 +60,8 @@ class PurchaseController
 
             $total = 0;
             foreach ($data['items'] as $item) {
-                $product = Product::where('business_id', $business->id)->findOrFail($item['product_id']);
+                $product = Product::where('business_id', $business->id)->lockForUpdate()->findOrFail($item['product_id']);
+                \App\Services\BatchInventory::preserveLegacy($product);
                 $lineTotal = $item['quantity'] * $item['unit_cost'];
 
                 $purchase->items()->create([
@@ -63,8 +71,17 @@ class PurchaseController
                     'line_total' => $lineTotal,
                 ]);
 
+                StockBatch::create([
+                    'business_id' => $business->id, 'product_id' => $product->id, 'purchase_id' => $purchase->id,
+                    'batch_code' => $item['batch_code'] ?? ('PUR-'.$purchase->id.'-'.$product->id),
+                    'received_date' => $item['received_date'] ?? $data['purchase_date'],
+                    'quantity_received' => $item['quantity'], 'quantity_remaining' => $item['quantity'],
+                    'unit_cost' => $item['unit_cost'], 'expiry_date' => $item['expiry_date'] ?? null,
+                ]);
+
                 $product->stock_quantity = (int) $product->stock_quantity + (int) $item['quantity'];
                 $product->save();
+                StockMovement::create(['business_id'=>$business->id,'product_id'=>$product->id,'shift_id'=>$shiftId,'movement_type'=>'receipt','reference_type'=>'purchase','reference_id'=>$purchase->id,'quantity_in'=>$item['quantity'],'quantity_out'=>0,'unit_cost'=>$item['unit_cost'],'occurred_at'=>now(),'created_by'=>$request->user()->id]);
 
                 $total += $lineTotal;
             }
@@ -72,6 +89,7 @@ class PurchaseController
             $purchase->total_amount = $total;
             $purchase->save();
 
+            app(InventoryAlertService::class)->refresh($business);
             return $purchase->load('items.product');
         });
 

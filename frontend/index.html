@@ -1,11 +1,26 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (() => {
+        let preference = 'system';
+        try { const saved = localStorage.getItem('kottraluy-theme'); if (['light', 'dark', 'system'].includes(saved)) preference = saved; } catch {}
+        const theme = preference === 'system' ? matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' : preference;
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        try { document.documentElement.lang = localStorage.getItem('kottraluy-language') === 'km' ? 'km' : 'en'; } catch {}
+      })();
+    </script>
+    <style>html { background: #F7F9F7; color: #172B23; } html[data-theme="dark"] { background: #091B13; color: #EAF3ED; }</style>
     <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/src/assets/KotTraLuy.png" />
+    <link rel="icon" type="image/png" href="/src/assets/kottraluy-mark-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Koh+Santepheap:wght@100;300;400;700;900&display=swap" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KotTraLuy · Financing preparation</title>
+    <title>KotTraLuy</title>
   </head>
   <body>
     <div id="root"></div>

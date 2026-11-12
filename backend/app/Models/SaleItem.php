@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SaleItem extends Model
 {
@@ -35,4 +36,6 @@ class SaleItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function allocations(): HasMany { return $this->hasMany(SaleBatchAllocation::class); }
 }

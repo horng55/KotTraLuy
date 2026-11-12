@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run i18n:check && vite build",
     "lint": "eslint .",
+    "test": "node --test tests/*.test.js",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "i18n:audit": "node scripts/check-i18n.mjs --report",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,6 +18,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.8",
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
