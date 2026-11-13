@@ -2,6 +2,7 @@ import { t as tr, messageText } from '../lib/i18n';
 import { cloneElement, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Package, Search, X } from 'lucide-react';
+import { ProductThumbnail } from './ProductImage';
 
 export function AppDialog({ title, section, description, onClose, busy, children, footer, language = 'en' }) {
   const titleId = useId();
@@ -49,6 +50,28 @@ export function PrimaryButton(props) { return <button type="button" {...props} c
 export function SecondaryButton(props) { return <button type="button" {...props} className={`kt-button kt-secondary ${props.className || ''}`} />; }
 export function FormError({ children }) { return children ? <div className="kt-error" role="alert">{children}</div> : null; }
 export function EmptyState({ title, description, children }) { return <div className="kt-empty"><span><Package size={24} /></span><h3>{title}</h3><p>{description}</p>{children}</div>; }
+
+const normalizeOptions = options => (options || []).map(option => Array.isArray(option) ? { value: option[0], label: option[1] } : option);
+
+/** Shared accessible select used across workspace forms, filters, and reports. */
+export function Select({ value, onChange, options, placeholder, emptyLabel, searchable = false, compact = false, disabled = false, id, className = '', 'aria-label': ariaLabel, ...props }) {
+  const listId = useId(); const trigger = useRef(null); const search = useRef(null); const [open, setOpen] = useState(false); const [query, setQuery] = useState(''); const [style, setStyle] = useState({});
+  const normalized = normalizeOptions(options); const selected = normalized.find(option => String(option.value) === String(value));
+  const matches = searchable && query ? normalized.filter(option => String(option.label ?? option.value).toLowerCase().includes(query.toLowerCase())) : normalized;
+  const close = () => { setOpen(false); setQuery(''); };
+  const position = () => { const rect = trigger.current?.getBoundingClientRect(); if (!rect) return; const roomBelow = window.innerHeight - rect.bottom; const height = Math.min(320, Math.max(120, matches.length * 44 + (searchable ? 52 : 8))); setStyle({ top: roomBelow < height && rect.top > height ? rect.top - height - 6 : rect.bottom + 6, left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 220) - 8)), width: Math.max(rect.width, Math.min(360, window.innerWidth - 16)) }); };
+  useEffect(() => { if (!open) return undefined; position(); const onResize = () => position(); const onOutside = event => { if (!trigger.current?.contains(event.target) && !event.target.closest('.kt-global-select-menu')) close(); }; window.addEventListener('resize', onResize); window.addEventListener('scroll', onResize, true); document.addEventListener('pointerdown', onOutside); search.current?.focus(); return () => { window.removeEventListener('resize', onResize); window.removeEventListener('scroll', onResize, true); document.removeEventListener('pointerdown', onOutside); }; }, [open, matches.length]);
+  const choose = option => { onChange?.(option.value); close(); trigger.current?.focus(); };
+  const move = event => { const items = [...document.querySelectorAll(`#${listId} [role=option]`)]; const index = items.indexOf(document.activeElement); if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); items[(index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus(); } else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); items[event.key === 'Home' ? 0 : -1]?.focus(); } else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); const item = items[index]; if (item) choose(normalized.find(option => String(option.value) === item.dataset.value)); } else if (event.key === 'Escape') { event.preventDefault(); close(); trigger.current?.focus(); } };
+  return <div className={`kt-global-select ${compact ? 'is-compact' : ''} ${className}`}><button {...props} id={id} ref={trigger} type="button" className="kt-input kt-global-select-trigger" aria-label={ariaLabel || placeholder} aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} disabled={disabled} onClick={() => { if (!open) position(); setOpen(current => !current); }} onKeyDown={event => { if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setOpen(true); } if (event.key === 'Escape') close(); }}>{selected?.label || placeholder}<ChevronDown size={16} aria-hidden="true" /></button>{open && createPortal(<div className="kt-global-select-menu" style={style} role="presentation"><div className="kt-global-select-list" id={listId} role="listbox" aria-label={ariaLabel || placeholder} onKeyDown={move}>{searchable && <div className="kt-global-select-search"><Search size={15} aria-hidden="true" /><input ref={search} value={query} placeholder={placeholder} aria-label={placeholder} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); document.querySelector(`#${listId} [role=option]`)?.focus(); } if (event.key === 'Escape') { event.preventDefault(); close(); trigger.current?.focus(); } }} /></div>}{matches.length ? matches.map(option => <button type="button" role="option" data-value={option.value} aria-selected={String(option.value) === String(value)} key={String(option.value)} onClick={() => choose(option)}>{option.label}{String(option.value) === String(value) && <span aria-hidden="true">✓</span>}</button>) : <p className="kt-global-select-empty">{emptyLabel || placeholder}</p>}</div></div>, document.body)}</div>;
+}
+
+export const SearchableSelect = props => <Select searchable {...props} />;
+export const FilterSelect = props => <Select compact {...props} />;
+export function MultiSelect({ value = [], onChange, options, placeholder, ...props }) {
+  const selected = new Set((value || []).map(String));
+  return <Select {...props} value="" placeholder={selected.size ? `${selected.size} ${placeholder || ''}` : placeholder} options={normalizeOptions(options).map(option => ({ ...option, label: `${selected.has(String(option.value)) ? '✓ ' : ''}${option.label}` }))} onChange={option => onChange?.(selected.has(String(option)) ? [...selected].filter(item => item !== String(option)) : [...selected, String(option)])} />;
+}
 
 export function ProductSelect({ products, value, onChange, placeholder, emptyLabel, stockLabel, disabled, id, ...accessibility }) {
   const [open, setOpen] = useState(false); const [query, setQuery] = useState('');

@@ -3,10 +3,11 @@ const API_BASE = '/api';
 export async function apiFetch(url, options = {}) {
   const token = sessionStorage.getItem('biztrack_token');
   const hasBody = options.body !== undefined && options.body !== null;
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
   const headers = {
     Accept: 'application/json',
-    ...(hasBody && !options.headers?.['Content-Type']
+    ...(hasBody && !isFormData && !options.headers?.['Content-Type']
       ? { 'Content-Type': 'application/json' }
       : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -48,6 +49,23 @@ export async function apiFetch(url, options = {}) {
   }
 
   return data;
+}
+
+export async function apiDownload(url, options = {}) {
+  const token = sessionStorage.getItem('biztrack_token');
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${url}`, { ...options, headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) } });
+  } catch (failure) {
+    if (failure.name === 'AbortError') throw failure;
+    const error = new Error('The API could not be reached.'); error.code = 'network_error'; error.status = 0; throw error;
+  }
+  if (!response.ok) {
+    let data = {};
+    try { data = await response.json(); } catch { /* non-JSON server response */ }
+    const error = new Error(response.status >= 500 ? 'The API service is unavailable.' : data.message || 'Download failed'); error.status = response.status; error.code = data.code || (response.status === 403 ? 'forbidden' : response.status === 422 ? 'validation_failed' : 'http_error'); error.errors = data.errors || {}; throw error;
+  }
+  return { blob: await response.blob(), filename: response.headers.get('content-disposition')?.match(/filename="?([^";]+)"?/i)?.[1] || null };
 }
 
 export function saveToken(token) {

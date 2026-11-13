@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Services\ReportService;
+use App\Services\FinancialExcelService;
 use Illuminate\Http\Request;
 
 class ReportController
@@ -12,6 +13,21 @@ class ReportController
         abort_unless($request->user()->business_id && $request->user()->status === 'active', 403);
         $data = $request->validate(['from'=>'required|date_format:Y-m-d','to'=>'required|date_format:Y-m-d|after_or_equal:from','currency'=>'sometimes|required|in:USD,KHR']);
         return response()->json($reportService->financialReport($request->user()->business, $data['from'], $data['to'], $data['currency'] ?? null));
+    }
+
+    public function financialExcel(Request $request, ReportService $reportService, FinancialExcelService $excel)
+    {
+        abort_unless($request->user()->business_id && $request->user()->status === 'active', 403);
+        $data = $request->validate([
+            'from' => 'required|date_format:Y-m-d',
+            'to' => 'required|date_format:Y-m-d|after_or_equal:from',
+            'currency' => 'sometimes|required|in:USD,KHR',
+            'language' => 'sometimes|in:en,km',
+        ]);
+        $report = $reportService->financialReport($request->user()->business, $data['from'], $data['to'], $data['currency'] ?? null);
+        $path = $excel->create($report, $data['language'] ?? 'en');
+        $filename = 'KotTraLuy_Financial_Report_' . $data['from'] . '_to_' . $data['to'] . '.xlsx';
+        return response()->download($path, $filename, ['Content-Type' => $excel->mime()])->deleteFileAfterSend(true);
     }
     public function daily(Request $request, ReportService $reportService)
     {

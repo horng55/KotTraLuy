@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
         $schedule->command('inventory:refresh-alerts')->hourly()->withoutOverlapping();
+        $schedule->command('telegram:remind-inventory')->hourly()->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         // The SPA authenticates API requests with Sanctum bearer tokens.

@@ -6,6 +6,9 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Models\InventoryAlert;
 use App\Services\InventoryAlertService;
+use App\Services\ProductImageService;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController
 {
@@ -19,7 +22,7 @@ class ProductController
         );
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ProductImageService $images)
     {
         if ($request->user()->role !== 'owner') {
             return response()->json(['message' => 'Owner access only.'], 403);
@@ -37,9 +40,11 @@ class ProductController
             'is_active' => 'boolean',
             'expiry_date' => 'nullable|date_format:Y-m-d',
             'batch_code' => 'nullable|string|max:100',
+            'image' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
-
-        $product = \Illuminate\Support\Facades\DB::transaction(function () use ($request,$data) {
+        $imageKey = null;
+        try {
+        $product = \Illuminate\Support\Facades\DB::transaction(function () use ($request,$data,$images,&$imageKey) {
         \App\Models\Business::whereKey($request->user()->business_id)->lockForUpdate()->firstOrFail();
         $product = Product::create([
             ...$data,
@@ -52,6 +57,12 @@ class ProductController
         }
         return $product;
         });
+        if ($request->hasFile('image')) $imageKey = $images->store($request->file('image'), (int) $product->business_id, (int) $product->id);
+        if ($imageKey) { $product->update(['image_storage_key' => $imageKey]); }
+        } catch (\Throwable $e) {
+            if ($imageKey) $images->delete($imageKey);
+            throw $e;
+        }
         return response()->json($product, 201);
     }
 
@@ -76,7 +87,7 @@ class ProductController
         return response()->json(InventoryAlert::where('business_id', $request->user()->business_id)->whereNull('resolved_at')->with(['product', 'stockBatch'])->latest()->get());
     }
 
-    public function update(Request $request, Product $product)
+    public function update(Request $request, Product $product, ProductImageService $images)
     {
         if ((int) $product->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
@@ -95,11 +106,33 @@ class ProductController
             'default_cost' => 'sometimes|numeric|min:0',
             'minimum_stock' => 'sometimes|integer|min:0',
             'is_active' => 'sometimes|boolean',
+            'image' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:5120',
+            'remove_image' => 'sometimes|boolean',
         ]);
-
-        $product->update($data);
+        $oldKey = $product->image_storage_key; $newKey = null;
+        unset($data['image'], $data['remove_image']);
+        try {
+            $product->update($data);
+            if ($request->hasFile('image')) {
+                $newKey = $images->store($request->file('image'), (int) $product->business_id, (int) $product->id);
+                $product->update(['image_storage_key' => $newKey]);
+                if ($oldKey) $images->delete($oldKey);
+            } elseif ($request->boolean('remove_image') && $oldKey) {
+                $product->update(['image_storage_key' => null]); $images->delete($oldKey);
+            }
+        } catch (\Throwable $e) {
+            if ($newKey) $images->delete($newKey);
+            throw $e;
+        }
 
         return response()->json($product);
+    }
+
+    public function image(Request $request, Product $product): StreamedResponse
+    {
+        abort_unless((int) $product->business_id === (int) $request->user()->business_id, 403);
+        abort_unless($product->image_storage_key && Storage::disk('local')->exists($product->image_storage_key), 404);
+        return Storage::disk('local')->response($product->image_storage_key, basename($product->image_storage_key), ['Content-Type' => 'image/webp', 'Cache-Control' => 'private, max-age=3600']);
     }
 
     public function destroy(Request $request, Product $product)

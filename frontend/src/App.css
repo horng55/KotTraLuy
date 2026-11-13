@@ -330,3 +330,24 @@ button { cursor: pointer; border: 0; background: none; color: inherit; }
   .page > .topbar { display: none; }
   .page > .home-layout .dashboard-toolbar { position: static; justify-content: flex-end; margin: 0 0 2px; }
 }
+/* Product image upload and secure thumbnail presentation */
+.product-image-field { gap: 8px; }
+.product-image-drop { min-height: 190px; display: grid; place-items: center; border: 1px dashed var(--accent-foreground); border-radius: 14px; background: var(--surface-subtle); overflow: hidden; }
+.product-image-state { display: grid; justify-items: center; gap: 7px; padding: 24px; text-align: center; color: var(--text-secondary); }
+.product-image-state strong { color: var(--text-primary); font-size: 13px; }
+.product-image-state small { font-size: 11px; }
+.product-image-preview-wrap { width: 100%; display: grid; justify-items: center; gap: 12px; padding: 12px; }
+.product-image-preview { width: min(100%, 260px); max-height: 220px; object-fit: contain; border-radius: 12px; background: var(--surface-elevated); }
+.product-image-actions, .product-image-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.product-image-buttons { justify-content: flex-start; }
+.product-thumbnail, .product-thumbnail-placeholder { display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 10px; object-fit: cover; background: var(--surface-accent); color: var(--accent-foreground); }
+.product-thumbnail { object-fit: cover; border-radius: 8px; }
+.kt-product-detail-image { display: grid; place-items: center; margin: 0 0 18px; }
+.kt-product-detail-image .product-thumbnail, .kt-product-detail-image .product-thumbnail-placeholder { max-width: 100%; height: auto !important; aspect-ratio: 1; border-radius: 14px; }
+.product-name-cell { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.product-name-cell > span { min-width: 0; }
+.kt-select-trigger { display: flex; align-items: center; gap: 8px; }
+.kt-select-trigger > span { min-width: 0; }
+.kt-select-menu [role=option] { flex-direction: row; align-items: center; gap: 8px; }
+.kt-select-menu [role=option] > span { display: grid; gap: 2px; min-width: 0; }
+@media (max-width: 600px) { .product-image-drop { min-height: 170px; } .product-image-actions, .product-image-buttons { width: 100%; } .product-image-actions .kt-button, .product-image-buttons .kt-button { flex: 1; } .kt-stock-table .product-thumbnail, .kt-stock-table .product-thumbnail-placeholder { width: 56px !important; height: 56px !important; } }

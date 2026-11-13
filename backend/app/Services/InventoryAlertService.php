@@ -52,5 +52,22 @@ class InventoryAlertService
             }
         }
         else { $query->whereNull('resolved_at')->update(['resolved_at'=>now()]); }
+        $this->resolveNotifications($business, $product, $batch, $condition);
+    }
+
+    private function resolveNotifications(Business $business, Product $product, ?StockBatch $batch, ?string $condition): void
+    {
+        \App\Models\WorkspaceNotification::where('business_id', $business->id)
+            ->whereIn('type', ['inventory.low_stock', 'inventory.out_of_stock', 'inventory.expired', 'inventory.expires_today', 'inventory.expiring_soon'])
+            ->whereNull('data->resolved_at')->get()->each(function ($notification) use ($product, $batch, $condition) {
+                $data = $notification->data;
+                if (($data['entity_type'] ?? null) !== 'product' || (int) ($data['entity_id'] ?? 0) !== (int) $product->id) return;
+                $params = $data['params'] ?? [];
+                if ((int) ($params['batch_id'] ?? 0) !== (int) ($batch?->id ?? 0)) return;
+                $expected = $condition ? 'inventory.'.$condition : null;
+                if ($notification->type === $expected) return;
+                $data['resolved_at'] = now()->toIso8601String();
+                $notification->update(['read_at' => $notification->read_at ?? now(), 'data' => $data]);
+            });
     }
 }

@@ -65,7 +65,7 @@ class TelegramBotController
             return [
                 'duplicate' => false,
                 'chat_id' => $chatId,
-                'reply' => $this->handleMessage($chatId, $text),
+                'reply' => $this->handleMessage($chatId, $text, $message['from']['language_code'] ?? null),
             ];
         });
 
@@ -80,7 +80,7 @@ class TelegramBotController
         return response()->json(['ok' => true]);
     }
 
-    private function handleMessage(int|string $chatId, string $text): string
+    private function handleMessage(int|string $chatId, string $text, ?string $languageCode = null): string
     {
         if (preg_match('/^\/start(?:@\w+)?\s+link_([A-Za-z0-9]{48})$/', $text, $matches)) {
             return "To finish connecting your KotTraLuy account, send this command:\n/link {$matches[1]}";
@@ -98,6 +98,13 @@ class TelegramBotController
 
         if (! $user) {
             return 'KotTraLuy Telegram is not linked yet. Log in to KotTraLuy, choose Connect Telegram, then send /link <token> to this bot.';
+        }
+
+        $telegramLanguage = Str::lower((string) $languageCode);
+        if (in_array($telegramLanguage, ['km', 'kh'], true) && $user->preferred_language !== 'km') {
+            $user->forceFill(['preferred_language' => 'km'])->save();
+        } elseif ($telegramLanguage === 'en' && $user->preferred_language !== 'en') {
+            $user->forceFill(['preferred_language' => 'en'])->save();
         }
 
         if ($user->role === 'staff' && ! $user->telegram_enabled) {

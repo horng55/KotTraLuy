@@ -6,6 +6,11 @@ use Illuminate\Support\Facades\Http;
 use Symfony\Component\Console\Command\Command;
 use App\Models\Business;
 use App\Services\InventoryAlertService;
+use App\Services\TelegramInventoryNotifier;
+use App\Jobs\SendTelegramInventoryNotification;
+use App\Models\TelegramNotificationDelivery;
+use App\Models\WorkspaceNotification;
+use App\Models\User;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -65,3 +70,26 @@ Artisan::command('inventory:refresh-alerts', function (InventoryAlertService $al
     Business::where('status', 'active')->each(fn ($business) => $alerts->refresh($business));
     $this->info('Inventory alerts refreshed.');
 })->purpose('Refresh expiry and stock alerts for every active business');
+
+Artisan::command('telegram:remind-inventory', function (TelegramInventoryNotifier $notifier) {
+    Business::where('status', 'active')->each(function ($business) use ($notifier) {
+        $preferences = $notifier->preferences($business);
+        if (!$preferences['telegram_enabled']) return;
+        $cutoff = now()->subHours((int) $preferences['reminder_frequency_hours']);
+        WorkspaceNotification::where('business_id', $business->id)
+            ->whereIn('type', TelegramInventoryNotifier::INVENTORY_TYPES)
+            ->whereNull('data->resolved_at')->with('notifiable')->get()->each(function ($notification) use ($business, $cutoff, $preferences) {
+                $params = $notification->data['params'] ?? [];
+                $recipients = User::where('business_id', $business->id)->where('status', 'active')
+                    ->whereNotNull('telegram_chat_id')->when($preferences['recipients'], fn ($query) => $query->whereIn('id', $preferences['recipients']), fn ($query) => $query->where(fn ($allowed) => $allowed->where('role', 'owner')->orWhere('telegram_enabled', true)))->get();
+                foreach ($recipients as $recipient) {
+                    $delivery = TelegramNotificationDelivery::firstOrCreate(['notification_id' => $notification->id, 'user_id' => $recipient->id], ['business_id' => $business->id, 'status' => 'pending']);
+                    if ($delivery->status !== 'sent' || !$delivery->sent_at || $delivery->sent_at->lte($cutoff)) {
+                        $delivery->update(['status' => 'pending', 'next_attempt_at' => null]);
+                        SendTelegramInventoryNotification::dispatch($delivery->id);
+                    }
+                }
+            });
+    });
+    $this->info('Telegram inventory reminders queued.');
+})->purpose('Queue due Telegram reminders for unresolved inventory alerts');

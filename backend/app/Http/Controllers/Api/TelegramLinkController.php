@@ -7,6 +7,7 @@ use App\Services\TelegramMiniAppDataValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\TelegramInventoryNotifier;
 
 class TelegramLinkController
 {
@@ -127,6 +128,40 @@ class TelegramLinkController
                 : 'Telegram was not connected.',
             'connected' => false,
         ]);
+    }
+
+    public function notificationSettings(Request $request, TelegramInventoryNotifier $notifier)
+    {
+        return response()->json([...$notifier->preferences($request->user()->business), 'preferred_language' => $request->user()->preferred_language ?: 'en']);
+    }
+
+    public function updateNotificationSettings(Request $request, TelegramInventoryNotifier $notifier)
+    {
+        abort_unless($request->user()->role === 'owner', 403);
+        $data = $request->validate([
+            'telegram_enabled' => ['required', 'boolean'],
+            'low_stock' => ['required', 'boolean'],
+            'out_of_stock' => ['required', 'boolean'],
+            'expiring_soon' => ['required', 'boolean'],
+            'expired' => ['required', 'boolean'],
+            'reminder_frequency_hours' => ['required', 'integer', 'min:1', 'max:168'],
+            'recipients' => ['nullable', 'array', 'max:100'],
+            'recipients.*' => ['integer', 'distinct', \Illuminate\Validation\Rule::exists('users', 'id')->where(fn ($query) => $query->where('business_id', $request->user()->business_id)->where('status', 'active'))],
+            'preferred_language' => ['sometimes', 'in:en,km'],
+        ]);
+        $language = $data['preferred_language'] ?? $request->user()->preferred_language ?? 'en';
+        unset($data['preferred_language']);
+        $request->user()->forceFill(['preferred_language' => $language])->save();
+        $request->user()->business->forceFill(['notification_preferences' => $data])->save();
+        return response()->json([...$notifier->preferences($request->user()->business->fresh()), 'preferred_language' => $language]);
+    }
+
+    public function sendTestNotification(Request $request, TelegramInventoryNotifier $notifier)
+    {
+        $user = $request->user();
+        abort_unless($user->telegram_chat_id && ($user->role === 'owner' || $user->telegram_enabled), 422, 'Connect Telegram before sending a test notification.');
+        $result = $notifier->sendTest($user);
+        return response()->json(['accepted' => true, 'telegram_message_id' => $result['message_id']]);
     }
 
     private function botUrl(string $code): string

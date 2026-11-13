@@ -94,7 +94,7 @@ class FinancialReportService
             $owner = $business->ownerUsers()->first();
             return [
                 'status' => 'draft', 'currency' => $currency, 'from' => $from, 'to' => $to, 'generated_at' => now()->toIso8601String(),
-                'business' => ['name' => $business->name, 'address' => $business->address, 'phone' => $business->phone, 'business_type' => $business->business_type, 'owner' => $owner?->name],
+                'business' => ['name' => $business->name, 'address' => $business->address, 'phone' => $business->phone, 'business_type' => $business->business_type, 'owner' => $owner?->name, 'timezone' => $business->timezone ?: config('app.timezone')],
                 'profit_and_loss' => [
                     'sales_revenue' => round($netRevenue + $discounts, 2), 'sales_returns' => null,
                     'sales_discounts' => round($discounts, 2), 'net_revenue' => round($netRevenue, 2),

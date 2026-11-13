@@ -22,7 +22,12 @@ class Product extends Model
         'minimum_stock',
         'stock_quantity',
         'is_active',
+        'image_storage_key',
     ];
+
+    protected $appends = ['image_available'];
+
+    protected $hidden = ['image_storage_key'];
 
     protected $casts = [
         'selling_price' => 'decimal:2',
@@ -60,5 +65,10 @@ class Product extends Model
     public function batches(): HasMany
     {
         return $this->hasMany(StockBatch::class);
+    }
+
+    public function getImageAvailableAttribute(): bool
+    {
+        return filled($this->image_storage_key);
     }
 }

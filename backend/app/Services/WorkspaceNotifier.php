@@ -6,6 +6,8 @@ use App\Models\Business;
 use App\Models\User;
 use App\Models\WorkspaceNotification;
 use Illuminate\Support\Str;
+use App\Jobs\SendTelegramInventoryNotification;
+use App\Services\TelegramInventoryNotifier;
 
 class WorkspaceNotifier
 {
@@ -38,17 +40,23 @@ class WorkspaceNotifier
             throw new \InvalidArgumentException('Unsupported notification type.');
         }
 
-        $recipients = User::where('business_id', $businessId)->where(function ($query) use ($owners, $additionalRecipients) {
-            if ($owners) {
+        $inventoryEvent = in_array($type, TelegramInventoryNotifier::INVENTORY_TYPES, true);
+        $configuredRecipients = $inventoryEvent && ($business = Business::find($businessId))
+            ? app(TelegramInventoryNotifier::class)->preferences($business)['recipients']
+            : [];
+        $recipients = User::where('business_id', $businessId)->where(function ($query) use ($owners, $additionalRecipients, $configuredRecipients, $inventoryEvent) {
+            if ($inventoryEvent && $configuredRecipients) {
+                $query->whereIn('id', $configuredRecipients);
+            } elseif ($owners) {
                 $query->where(fn ($owner) => $owner->where('role', 'owner')->where('status', 'active'));
             } else {
                 $query->whereRaw('1 = 0');
             }
-            $query->orWhereIn('id', array_filter($additionalRecipients));
-        })->get();
+            if (!$inventoryEvent) $query->orWhereIn('id', array_filter($additionalRecipients));
+        })->where('status', 'active')->get();
 
         foreach ($recipients as $recipient) {
-            WorkspaceNotification::firstOrCreate([
+            $notification = WorkspaceNotification::firstOrCreate([
                 'business_id' => $businessId,
                 'notifiable_type' => $recipient->getMorphClass(),
                 'notifiable_id' => $recipient->id,
@@ -66,6 +74,13 @@ class WorkspaceNotifier
                     'action_page' => self::TYPES[$type][1],
                 ],
             ]);
+            if ($inventoryEvent && $notification->wasRecentlyCreated) {
+                $delivery = \App\Models\TelegramNotificationDelivery::firstOrCreate([
+                    'notification_id' => $notification->id,
+                    'user_id' => $recipient->id,
+                ], ['business_id' => $businessId, 'status' => 'pending']);
+                SendTelegramInventoryNotification::dispatch($delivery->id)->afterCommit();
+            }
         }
     }
 

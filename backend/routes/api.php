@@ -39,6 +39,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/telegram/link-code', [TelegramLinkController::class, 'createCode'])->middleware('throttle:5,1');
         Route::get('/telegram/status', [TelegramLinkController::class, 'status'])->middleware('throttle:30,1');
         Route::delete('/telegram/link', [TelegramLinkController::class, 'disconnect'])->middleware('throttle:5,1');
+        Route::get('/telegram/notification-settings', [TelegramLinkController::class, 'notificationSettings']);
+        Route::put('/telegram/notification-settings', [TelegramLinkController::class, 'updateNotificationSettings']);
+        Route::post('/telegram/test-notification', [TelegramLinkController::class, 'sendTestNotification'])->middleware('throttle:3,1');
 
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
@@ -47,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/stock-batches/{batch}', [\App\Http\Controllers\Api\ExpirationController::class, 'update']);
         Route::post('/stock-batches/{batch}/dispose', [\App\Http\Controllers\Api\ExpirationController::class, 'dispose']);
         Route::apiResource('/products', ProductController::class);
+        Route::get('/products/{product}/image', [ProductController::class, 'image']);
         Route::apiResource('/purchases', PurchaseController::class);
         Route::apiResource('/sales', SaleController::class);
         Route::post('/sales/{sale}/payments', [SaleController::class, 'addPayment']);
@@ -61,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/range', [ReportController::class, 'range']);
         Route::get('/reports/range.csv', [ReportController::class, 'csv']);
         Route::get('/reports/financial', [ReportController::class, 'financial']);
+        Route::get('/reports/financial.xlsx', [ReportController::class, 'financialExcel']);
         Route::get('/financing/overview', [FinancingController::class, 'overview']);
         Route::get('/financing/products', [FinancingController::class, 'products']);
         Route::put('/financing/profile', [FinancingController::class, 'saveProfile']);
