@@ -22,7 +22,6 @@ class FinancialExcelService
         $sheets = [
             $this->overview($report, $language),
             $this->statement('Profit & Loss', $report['profit_and_loss'] ?? null, $report, $language),
-            $this->statement('Balance Sheet', $report['balance_sheet'] ?? null, $report, $language),
             $this->statement('Cash Flow', $report['cash_flow'] ?? null, $report, $language),
         ];
 
@@ -66,7 +65,6 @@ class FinancialExcelService
 
         foreach ([
             'profit_and_loss' => $l['profitLoss'],
-            'balance_sheet' => $l['balanceSheet'],
             'cash_flow' => $l['cashFlow'],
         ] as $key => $name) {
             $status = $this->availability($report, $key);
@@ -155,12 +153,12 @@ class FinancialExcelService
 
     private function statementKey(string $title): string
     {
-        return ['Profit & Loss' => 'profit_and_loss', 'Balance Sheet' => 'balance_sheet', 'Cash Flow' => 'cash_flow'][$title];
+        return ['Profit & Loss' => 'profit_and_loss', 'Cash Flow' => 'cash_flow'][$title];
     }
 
     private function titleKey(string $title): string
     {
-        return ['Profit & Loss' => 'profitLoss', 'Balance Sheet' => 'balanceSheet', 'Cash Flow' => 'cashFlow'][$title];
+        return ['Profit & Loss' => 'profitLoss', 'Cash Flow' => 'cashFlow'][$title];
     }
 
     private function labels(string $language): array
@@ -421,7 +419,7 @@ class FinancialExcelService
     {
         $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>';
         foreach ($sheets as $i => $sheet) {
-            $name = ['Overview', 'Profit & Loss', 'Balance Sheet', 'Cash Flow'][$i] ?? 'Statement';
+            $name = ['Overview', 'Profit & Loss', 'Cash Flow'][$i] ?? 'Statement';
             $xml .= '<sheet name="' . $this->escape($name) . '" sheetId="' . ($i + 1) . '" r:id="rId' . ($i + 1) . '"/>';
         }
         return $xml . '</sheets></workbook>';

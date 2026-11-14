@@ -91,7 +91,7 @@ class FinancialReportService
             $receipts = (float) DB::table('sale_payments')->where('business_id', $business->id)->where(function ($scope) use ($currency, $business) { $scope->where('currency', $currency)->when($currency === $business->currency, fn ($same) => $same->orWhereNull('currency')); })
                 ->whereBetween('paid_at', [$start, $end])->sum('amount');
 
-            $codes = ['recorded_activity_only', 'unrecorded_accounts', 'partial_cash_flow', 'legacy_cost_currency', 'inventory_snapshot'];
+            $codes = ['recorded_activity_only', 'partial_cash_flow', 'legacy_cost_currency', 'inventory_snapshot'];
             if (collect($currencies)->contains(fn ($value) => $value !== $currency)) $codes[] = 'separate_currencies';
             if (!$costsComplete) $codes[] = 'incomplete_costs';
             if (!$receivablesComplete) $codes[] = 'incomplete_receivables';
@@ -117,7 +117,7 @@ class FinancialReportService
                     'net_change_in_cash' => null, 'ending_cash' => null, 'validation' => ['beginning_plus_net_equals_ending' => null, 'ending_equals_balance_sheet_cash' => null, 'status' => 'incomplete']],
                 'statement_status' => ['profit_and_loss' => $costsComplete ? 'recorded_activity' : 'incomplete', 'balance_sheet' => 'incomplete', 'cash_flow' => 'incomplete'],
                 'limitation_codes' => $codes,
-                'limitations' => ['Only records in the requested currency are included; no conversion is performed.', 'Balance sheet and cash flow are incomplete because opening balances and other account movements are not recorded.', 'Inventory quantities are available only as a current snapshot.'],
+                'limitations' => ['Only records in the requested currency are included; no conversion is performed.', 'Cash flow is incomplete because opening balances and other account movements are not recorded.', 'Inventory quantities are available only as a current snapshot.'],
                 'data_coverage' => ['sales' => $sales->count(), 'expenses' => $expenses->count(), 'historical_sales' => $allSales->count(),
                     'historical_expenses' => Expense::where('business_id', $business->id)->where('currency', $currency)->where('expense_date', '<=', $to)->count(),
                     'currency_records' => $currencies, 'selected_currency' => $currency, 'customer_payments' => DB::table('sale_payments')->where('business_id', $business->id)->where(function ($scope) use ($currency, $business) { $scope->where('currency', $currency)->when($currency === $business->currency, fn ($same) => $same->orWhereNull('currency')); })->whereBetween('paid_at', [$start, $end])->count()],

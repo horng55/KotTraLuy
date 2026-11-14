@@ -8,7 +8,7 @@ use ZipArchive;
 
 class FinancialExcelServiceTest extends TestCase
 {
-    public function test_it_creates_a_four_sheet_xlsx_workbook(): void
+    public function test_it_creates_a_three_sheet_xlsx_workbook(): void
     {
         $path = (new FinancialExcelService())->create([
             'business' => ['name' => 'Test workspace'], 'from' => '2026-01-01', 'to' => '2026-11-13', 'currency' => 'USD', 'generated_at' => date('c'),
@@ -17,9 +17,12 @@ class FinancialExcelServiceTest extends TestCase
         ], 'en');
         $zip = new ZipArchive();
         self::assertSame(true, $zip->open($path));
-        self::assertSame(9, $zip->numFiles);
-        self::assertNotFalse($zip->locateName('xl/worksheets/sheet4.xml'));
+        self::assertSame(8, $zip->numFiles);
+        self::assertNotFalse($zip->locateName('xl/worksheets/sheet3.xml'));
+        self::assertFalse($zip->locateName('xl/worksheets/sheet4.xml'));
         self::assertStringContainsString('Profit &amp; Loss', $zip->getFromName('xl/workbook.xml'));
+        self::assertStringContainsString('Cash Flow', $zip->getFromName('xl/workbook.xml'));
+        self::assertStringNotContainsString('Balance Sheet', $zip->getFromName('xl/workbook.xml'));
         self::assertStringContainsString('state="frozen"', $zip->getFromName('xl/worksheets/sheet1.xml'));
         self::assertStringContainsString('mergeCell ref="A1:F1"', $zip->getFromName('xl/worksheets/sheet1.xml'));
         self::assertStringContainsString('Noto Sans Khmer', $zip->getFromName('xl/styles.xml'));
