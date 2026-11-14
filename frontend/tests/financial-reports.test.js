@@ -15,7 +15,7 @@ test('only the supported reporting currencies are accepted', () => {
 });
 test('a response for another period or currency cannot be displayed as the requested report', () => {
   const parameters = {from:'2026-01-01',to:'2026-11-11',currency:'USD'};
-  const response = {...parameters,business:{name:'Validation fixture'},generated_at:'2026-11-11T12:00:00Z',profit_and_loss:{},balance_sheet:null,cash_flow:null};
+  const response = {...parameters,business:{name:'Validation fixture'},generated_at:'2026-11-11T12:00:00Z',profit_and_loss:{},cash_flow:null};
   assert.equal(validateFinancialResponse(response,parameters),response);
   assert.throws(()=>validateFinancialResponse({...response,currency:'KHR'},parameters));
   assert.throws(()=>validateFinancialResponse({...response,from:'2026-02-01'},parameters));

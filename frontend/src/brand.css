@@ -48,7 +48,9 @@
   object-position: left center;
 }
 
-.sidebar.collapsed { width: 72px; }
+.sidebar { transition: width .2s ease; }
+.sidebar + .main-shell { transition: margin-left .2s ease; }
+.sidebar.collapsed { width: 72px; padding-inline: 10px; }
 .sidebar.collapsed + .main-shell { margin-left: 72px; }
 .sidebar.collapsed .brand-icon-full,
 .sidebar.collapsed .workspace-switch div,
@@ -60,6 +62,35 @@
 .sidebar.collapsed .workspace-switch { justify-content: center; padding-inline: 0; }
 .sidebar.collapsed nav button { justify-content: center; padding-inline: 0; }
 .sidebar.collapsed .side-foot { justify-content: center; }
+.sidebar.collapsed .side-top { justify-content: center; padding-inline: 0; }
+.brand-collapsed { width: 42px; }
+
+.side-collapse {
+  position: absolute;
+  top: 94px;
+  right: -12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--accent-foreground);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-ink) 10%, transparent);
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.side-collapse:hover { border-color: var(--border-accent); background: var(--surface-subtle); box-shadow: 0 5px 15px color-mix(in srgb, var(--shadow-ink) 15%, transparent); }
+.side-collapse:focus-visible { outline: 2px solid var(--accent-foreground); outline-offset: 2px; }
+
+@media (min-width: 701px) {
+  .sidebar.collapsed + .main-shell { margin-left: 72px; }
+}
+
+@media (max-width: 700px) {
+  .side-collapse { display: none; }
+}
 
 .side-top {
   align-items: center;

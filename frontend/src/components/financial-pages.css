@@ -180,5 +180,5 @@
   .fp-statement + .fp-statement { margin-top: 20px; }
   .fp-table-scroll { overflow: visible; }
   .fp-generated-report { font-family: Arial, sans-serif; }
-  .fp-reports[data-print-section=profit_and_loss] .fp-statement:not([data-statement=profit_and_loss]), .fp-reports[data-print-section=balance_sheet] .fp-statement:not([data-statement=balance_sheet]), .fp-reports[data-print-section=cash_flow] .fp-statement:not([data-statement=cash_flow]) { display: none; }
+  .fp-reports[data-print-section=profit_and_loss] .fp-statement:not([data-statement=profit_and_loss]), .fp-reports[data-print-section=cash_flow] .fp-statement:not([data-statement=cash_flow]) { display: none; }
 }
