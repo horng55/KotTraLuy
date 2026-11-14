@@ -44,24 +44,45 @@ class ProductController
         ]);
         $imageKey = null;
         try {
-        $product = \Illuminate\Support\Facades\DB::transaction(function () use ($request,$data,$images,&$imageKey) {
-        \App\Models\Business::whereKey($request->user()->business_id)->lockForUpdate()->firstOrFail();
-        $product = Product::create([
-            ...$data,
-            'business_id' => $request->user()->business_id,
-            'stock_quantity' => (int) ($data['stock_quantity'] ?? 0),
-        ]);
-
-        if ($product->stock_quantity > 0) {
-            \App\Models\StockBatch::create(['business_id'=>$product->business_id,'product_id'=>$product->id,'batch_code'=>$data['batch_code'] ?? 'OPEN-'.$product->id,'received_date'=>now($request->user()->business->timezone ?: 'Asia/Phnom_Penh')->toDateString(),'quantity_received'=>$product->stock_quantity,'quantity_remaining'=>$product->stock_quantity,'unit_cost'=>$product->default_cost,'expiry_date'=>$data['expiry_date'] ?? null]);
-        }
-        return $product;
-        });
-        if ($request->hasFile('image')) $imageKey = $images->store($request->file('image'), (int) $product->business_id, (int) $product->id);
-        if ($imageKey) { $product->update(['image_storage_key' => $imageKey]); }
+            $product = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $data, $images, &$imageKey) {
+                \App\Models\Business::whereKey($request->user()->business_id)->lockForUpdate()->firstOrFail();
+                $product = Product::create([
+                    'business_id' => $request->user()->business_id,
+                    'category_id' => $data['category_id'] ?? null,
+                    'name' => $data['name'],
+                    'sku' => $data['sku'] ?? null,
+                    'unit' => $data['unit'] ?? 'pcs',
+                    'selling_price' => $data['selling_price'] ?? 0,
+                    'default_cost' => $data['default_cost'] ?? 0,
+                    'minimum_stock' => $data['minimum_stock'] ?? 0,
+                    'stock_quantity' => (int) ($data['stock_quantity'] ?? 0),
+                    'is_active' => $data['is_active'] ?? true,
+                ]);
+                if ($request->hasFile('image')) {
+                    $imageKey = $images->store($request->file('image'), (int) $product->business_id, (int) $product->id);
+                    $product->update(['image_storage_key' => $imageKey]);
+                }
+                if ($product->stock_quantity > 0) {
+                    \App\Models\StockBatch::create([
+                        'business_id' => $product->business_id,
+                        'product_id' => $product->id,
+                        'batch_code' => $data['batch_code'] ?? 'OPEN-'.$product->id,
+                        'received_date' => now($request->user()->business->timezone ?: 'Asia/Phnom_Penh')->toDateString(),
+                        'quantity_received' => $product->stock_quantity,
+                        'quantity_remaining' => $product->stock_quantity,
+                        'unit_cost' => $product->default_cost,
+                        'expiry_date' => $data['expiry_date'] ?? null,
+                    ]);
+                }
+                return $product->fresh();
+            });
+        } catch (\InvalidArgumentException $e) {
+            if ($imageKey) $images->delete($imageKey);
+            return response()->json(['message' => $e->getMessage(), 'code' => 'invalid_product_image'], 422);
         } catch (\Throwable $e) {
             if ($imageKey) $images->delete($imageKey);
-            throw $e;
+            report($e);
+            return response()->json(['message' => 'The product could not be saved right now.', 'code' => 'product_save_failed'], 500);
         }
         return response()->json($product, 201);
     }
@@ -100,7 +121,7 @@ class ProductController
         $data = $request->validate([
             'name' => 'sometimes|required|string',
             'sku' => 'nullable|string',
-            'category_id' => 'nullable|exists:product_categories,id',
+            'category_id' => ['nullable', \Illuminate\Validation\Rule::exists('product_categories','id')->where('business_id',$request->user()->business_id)],
             'unit' => 'nullable|string',
             'selling_price' => 'sometimes|numeric|min:0',
             'default_cost' => 'sometimes|numeric|min:0',
@@ -112,18 +133,23 @@ class ProductController
         $oldKey = $product->image_storage_key; $newKey = null;
         unset($data['image'], $data['remove_image']);
         try {
-            $product->update($data);
-            if ($request->hasFile('image')) {
-                $newKey = $images->store($request->file('image'), (int) $product->business_id, (int) $product->id);
-                $product->update(['image_storage_key' => $newKey]);
-                if ($oldKey) $images->delete($oldKey);
-            } elseif ($request->boolean('remove_image') && $oldKey) {
-                $product->update(['image_storage_key' => null]); $images->delete($oldKey);
-            }
+            \Illuminate\Support\Facades\DB::transaction(function () use ($product, $data, $request, $images, &$newKey) {
+                $product->update($data);
+                if ($request->hasFile('image')) {
+                    $newKey = $images->store($request->file('image'), (int) $product->business_id, (int) $product->id);
+                    $product->update(['image_storage_key' => $newKey]);
+                } elseif ($request->boolean('remove_image')) {
+                    $product->update(['image_storage_key' => null]);
+                }
+            });
+        } catch (\InvalidArgumentException $e) {
+            if ($newKey) $images->delete($newKey);
+            return response()->json(['message' => $e->getMessage(), 'code' => 'invalid_product_image'], 422);
         } catch (\Throwable $e) {
             if ($newKey) $images->delete($newKey);
             throw $e;
         }
+        if ($oldKey && ($newKey || $request->boolean('remove_image'))) $images->delete($oldKey);
 
         return response()->json($product);
     }
@@ -132,7 +158,12 @@ class ProductController
     {
         abort_unless((int) $product->business_id === (int) $request->user()->business_id, 403);
         abort_unless($product->image_storage_key && Storage::disk('local')->exists($product->image_storage_key), 404);
-        return Storage::disk('local')->response($product->image_storage_key, basename($product->image_storage_key), ['Content-Type' => 'image/webp', 'Cache-Control' => 'private, max-age=3600']);
+        $mime = match (strtolower(pathinfo($product->image_storage_key, PATHINFO_EXTENSION))) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            default => 'image/webp',
+        };
+        return Storage::disk('local')->response($product->image_storage_key, basename($product->image_storage_key), ['Content-Type' => $mime, 'Cache-Control' => 'private, max-age=3600', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     public function destroy(Request $request, Product $product)

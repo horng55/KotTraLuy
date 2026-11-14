@@ -5,7 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import AppHeader from './components/AppHeader';
 import NotificationProvider from './components/NotificationProvider';
 import NotificationsPage from './components/NotificationsPage';
-import { ArrowDown, ArrowUp, BarChart3, BookOpen, Boxes, Check, ChevronRight, CircleAlert, Package, Plus, Settings, ShieldCheck, ShoppingCart, Sparkles, WalletCards, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BarChart3, BookOpen, Boxes, Check, ChevronRight, CircleAlert, LayoutDashboard, Package, Plus, ShieldCheck, ShoppingCart, Sparkles, WalletCards, X } from 'lucide-react';
 import { apiFetch, clearToken, saveToken } from './lib/api';
 import PasswordChangePanel from './components/PasswordChangePanel';
 import TelegramAccessPanel from './components/TelegramAccessPanel';
@@ -22,6 +22,7 @@ import HomePage from './components/HomePage';
 import RecordsHub from './components/RecordsHub';
 import MorePage from './components/MorePage';
 import LoginScreen from './components/LoginScreen';
+import InvitationAcceptPage from './components/InvitationAcceptPage';
 import { getLanguage, setLanguage, subscribeLanguage, text as uiLabel, domainLabel, validateControl, clearControlValidation } from './lib/i18n';
 import { getTelegramWebApp, isTelegramMiniApp, setTelegramBackButton, syncTelegramEnvironment, telegramHaptic } from './lib/telegram';
 import { Select } from './components/FormUI';
@@ -43,7 +44,7 @@ import loginLogo from './assets/kottraluy-login-logo.png';
 const authDefaults = { name: '', email: '', password: '', business_name: '', role: 'owner' };
 const profileDefaults = { requested_amount: '', currency: 'USD', purpose: 'Working capital', requested_timing: 'Within 3 months', business_registration_status: 'unknown', bank_statement_status: 'missing', collateral_status: 'unknown' };
 const navItems = [
-  ['overview', "common.dashboard", BarChart3], ['records', "sales.sales_2", ShoppingCart], ['inventory', "stock.stock", Package], ['reports', "reports.reports", BarChart3], ['more', "settings.settings_2", Settings],
+  ['overview', "common.dashboard", BarChart3], ['records', "sales.sales_2", ShoppingCart], ['inventory', "stock.stock", Package], ['reports', "reports.reports", BarChart3], ['more', "settings.settings_2", LayoutDashboard],
 ];
 const mainTabFor = (key) => {
   if (['prepare', 'options', 'packs', 'documents', 'business', 'telegram', 'alerts'].includes(key)) return 'more';
@@ -135,7 +136,7 @@ export default function App() {
       setBusiness(user.business || {});
       if (user.must_change_password) return;
       const [dash, fin, productList, saleList, expenseList, packList] = await Promise.all([
-        user.role === 'owner' ? apiFetch('/dashboard') : apiFetch('/products').then(items => ({ business: user.business, products: items })), apiFetch('/financing/overview'), apiFetch('/financing/products').then((data) => { setFinancingError(''); return data; }).catch((failure) => { setFinancingError(failure); return []; }), apiFetch('/sales').catch(() => []), apiFetch('/expenses').catch(() => []), apiFetch('/financing/packs').catch(() => []),
+        user.role === 'owner' ? apiFetch('/dashboard') : apiFetch('/products').then(items => ({ business: user.business, products: items })), apiFetch('/financing/overview'), apiFetch('/financing/products').then((data) => { setFinancingError(''); return data; }).catch((failure) => { setFinancingError(failure); return []; }), apiFetch('/sales'), apiFetch('/expenses'), apiFetch('/financing/packs').catch(() => []),
       ]);
       setDashboard(dash); setFinance(fin); setProducts(productList); setPacks(packList); setRecords({ sales: saleList, expenses: expenseList }); setBusiness(fin.business_profile || dash.business || {}); setProfile({ ...profileDefaults, ...(fin.profile || {}) });
     } catch (e) { setError(e); } finally { setLoading(false); }
@@ -159,6 +160,15 @@ export default function App() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const productId = Number(params.get('inventory_product'));
+    if (!Number.isInteger(productId) || productId <= 0) return;
+    const batchId = Number(params.get('inventory_batch'));
+    setActive('inventory');
+    setNotificationTarget({ entity_type: 'product', entity_id: productId, ...(Number.isInteger(batchId) && batchId > 0 ? { batch_id: batchId } : {}) });
+    window.history.replaceState({ kottraluyPage: 'inventory' }, '', `${window.location.pathname}${window.location.hash}`);
+  }, []);
   const go = (key, target = null) => {
     telegramHaptic('light');
     setNotificationTarget(target);
@@ -168,9 +178,19 @@ export default function App() {
     setMobileNav(false);
     window.history.pushState({ kottraluyPage: key }, '', window.location.href);
   };
-  const submitAuth = async (event) => { event.preventDefault(); setLoading(true); try { const result = await apiFetch(authMode === 'login' ? '/login' : '/register', { method: 'POST', body: JSON.stringify(authMode === 'login' ? { email: authForm.email, password: authForm.password } : authForm) }); saveToken(result.token); setCurrentUser(result.user); setToken(result.token); } catch (e) { setError(e); } finally { setLoading(false); } };
+  const logout = async () => {
+    try {
+      await apiFetch('/logout', { method: 'POST' });
+      clearToken(); setToken(''); setCurrentUser(null);
+      setDashboard(null); setFinance(null); setBusiness({});
+      setRecords({ sales: [], expenses: [] }); setProducts([]); setPacks([]);
+      setError(''); setMobileNav(false); setAuthForm(authDefaults); setAuthMode('login');
+    } catch (failure) { setError(failure); }
+  };  const submitAuth = async (event) => { event.preventDefault(); setLoading(true); try { const result = await apiFetch(authMode === 'login' ? '/login' : '/register', { method: 'POST', body: JSON.stringify(authMode === 'login' ? { email: authForm.email, password: authForm.password } : authForm) }); saveToken(result.token); setCurrentUser(result.user); setToken(result.token); } catch (e) { setError(e); } finally { setLoading(false); } };
+  const invitationToken = new URLSearchParams(window.location.search).get('invite');
+  if (!token && invitationToken) return <InvitationAcceptPage token={invitationToken} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} onAccepted={result => { setCurrentUser(result.user); setToken(result.token); window.history.replaceState({}, '', window.location.pathname); }} />;
   if (!token) return <LoginScreen mode={authMode} setMode={setAuthMode} form={authForm} setForm={setAuthForm} submit={submitAuth} loading={loading} error={messageText(error)} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} />;
-  return <NotificationProvider key={`${currentUser?.id}:${currentUser?.business_id}:${currentUser?.role}:${currentUser?.status}`} user={currentUser}><div className={`app-shell${telegramMiniApp ? ' telegram-mini-app' : ''}`}><Sidebar active={active} go={go} mobile={mobileNav} close={() => setMobileNav(false)} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} /><div className="main-shell"><AppHeader title={uiLabel(titleFor(active))} business={business} currentUser={currentUser} onNavigate={go} onMenu={() => setMobileNav(true)} onLogout={() => { clearToken(); setToken(''); setCurrentUser(null); }} language={language} onLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} /><main className="page"><div className="breadcrumbs"><span>{tr("settings.workspace")}</span><ChevronRight size={14} /><strong>{business.name || tr("common.my_business")}</strong><span className="workspace-badge">{tr("reports.self_reported_workspace")}</span><span className="avatar">{(business.name || 'RA').slice(0, 2).toUpperCase()}</span></div>{active !== 'inventory' && <div className="page-heading"><div><p className="eyebrow">{uiLabel(titleFor(active))}</p><h1>{uiLabel(titleFor(active))}</h1><p className="subheading">{uiLabel(pageDescription(active))}</p></div><div className="heading-actions">{active === 'inventory' && currentUser?.role === 'owner' && <button className="button primary" onClick={() => { setEditingProduct(null); setShowProduct(true); }}><Plus size={15} />{tr("stock.add_product_3")}</button>}</div></div>}{loading && <div className="loading-line"><span />{tr("settings.syncing_workspace_data")}</div>}{currentUser?.must_change_password ? <PasswordChangePanel required onChanged={() => { setCurrentUser({ ...currentUser, must_change_password: false }); load(); }} /> : <PageContent active={active} dashboard={dashboard} finance={finance} products={products} financingError={messageText(financingError)} packs={packs} profile={profile} setProfile={setProfile} business={business} setBusiness={setBusiness} records={records} onNavigate={go} reload={load} setError={setError} currentUser={currentUser} language={language} notificationTarget={notificationTarget} />}</main><MobileTabBar active={active} go={go} /><footer><span><span className="status-dot" />{tr("documents.data_belongs_to_this_workspace_documents_are_availability_only")}</span><button onClick={() => { clearToken(); setToken(''); setCurrentUser(null); }}>{tr("common.log_out")}</button></footer></div>{showRecord && <RecordModal products={dashboard?.products || []} close={() => setShowRecord(false)} reload={load} setError={setError} />}{showProduct && <ProductModal product={editingProduct} close={() => setShowProduct(false)} reload={load} setError={setError} />}{error && <button className="error-toast" onClick={() => setError('')}>{messageText(error)}<X size={15} /></button>}</div></NotificationProvider>;
+  return <NotificationProvider key={`${currentUser?.id}:${currentUser?.business_id}:${currentUser?.role}:${currentUser?.status}`} user={currentUser}><div className={`app-shell${telegramMiniApp ? ' telegram-mini-app' : ''}`}><Sidebar active={active} go={go} mobile={mobileNav} close={() => setMobileNav(false)} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} /><div className="main-shell"><AppHeader title={uiLabel(titleFor(active))} business={business} currentUser={currentUser} onNavigate={go} onMenu={() => setMobileNav(true)} onLogout={logout} language={language} onLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} /><main className="page"><div className="breadcrumbs"><span>{tr("settings.workspace")}</span><ChevronRight size={14} /><strong>{business.name || tr("common.my_business")}</strong><span className="workspace-badge">{tr("reports.self_reported_workspace")}</span><span className="avatar">{(business.name || 'RA').slice(0, 2).toUpperCase()}</span></div>{active !== 'inventory' && <div className="page-heading"><div><p className="eyebrow">{uiLabel(titleFor(active))}</p><h1>{uiLabel(titleFor(active))}</h1><p className="subheading">{uiLabel(pageDescription(active))}</p></div><div className="heading-actions">{active === 'inventory' && currentUser?.role === 'owner' && <button className="button primary" onClick={() => { setEditingProduct(null); setShowProduct(true); }}><Plus size={15} />{tr("stock.add_product_3")}</button>}</div></div>}{loading && <div className="loading-line"><span />{tr("settings.syncing_workspace_data")}</div>}{currentUser?.must_change_password ? <PasswordChangePanel required onChanged={() => { setCurrentUser({ ...currentUser, must_change_password: false }); load(); }} /> : <PageContent active={active} dashboard={dashboard} finance={finance} products={products} financingError={messageText(financingError)} packs={packs} profile={profile} setProfile={setProfile} business={business} setBusiness={setBusiness} records={records} onNavigate={go} reload={load} setError={setError} currentUser={currentUser} language={language} notificationTarget={notificationTarget} />}</main><MobileTabBar active={active} go={go} /><footer><span><span className="status-dot" />{tr("documents.data_belongs_to_this_workspace_documents_are_availability_only")}</span><button onClick={logout}>{tr("common.log_out")}</button></footer></div>{showRecord && <RecordModal products={dashboard?.products || []} close={() => setShowRecord(false)} reload={load} setError={setError} />}{showProduct && <ProductModal product={editingProduct} close={() => setShowProduct(false)} reload={load} setError={setError} />}{error && <button className="error-toast" onClick={() => setError('')}>{messageText(error)}<X size={15} /></button>}</div></NotificationProvider>;
 }
 
 function PageContent({ active, dashboard, finance, products, financingError, packs, profile, setProfile, business, setBusiness, records, onNavigate, reload, setError, currentUser, language, notificationTarget }) {

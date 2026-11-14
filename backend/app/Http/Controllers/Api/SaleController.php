@@ -75,6 +75,8 @@ class SaleController
             'sold_at' => 'required|date',
             'notes' => 'nullable|string',
             'currency' => 'nullable|in:USD,KHR',
+            'payment_method' => 'nullable|in:cash,khqr_bank_transfer,other',
+            'payment_confirmed' => 'nullable|boolean',
             'shift_id' => 'nullable|exists:shifts,id',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -90,6 +92,14 @@ class SaleController
             'idempotency_key' => 'nullable|string|max:100',
         ]);
 
+        $data['payment_method'] = $data['payment_method'] ?? 'cash';
+        $data['payment_confirmed'] = $data['payment_confirmed'] ?? true;
+        if ($data['payment_method'] !== 'cash' && !$data['payment_confirmed']) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_confirmed' => ['Confirm that the payment was received before saving this sale.'],
+            ]);
+        }
+
         $shiftId = $this->resolveShiftId($request, $data['shift_id'] ?? null);
 
         if (!empty($data['idempotency_key'])) {
@@ -103,6 +113,8 @@ class SaleController
             $sale = Sale::create([
                 'business_id' => $business->id,
                 'currency' => $data['currency'] ?? $business->currency,
+                'payment_method' => $data['payment_method'],
+                'payment_status' => 'unpaid',
                 'shift_id' => $shiftId,
                 'user_id' => $request->user()->id,
                 'sale_no' => 'SALE-' . now()->timestamp,
@@ -160,6 +172,7 @@ class SaleController
             $sale->total_amount = max(0, $total - ($data['discount_amount'] ?? 0));
             $sale->payment_received = min((float) ($data['payment_received'] ?? 0), (float) $sale->total_amount);
             $sale->outstanding_balance = max(0, (float) $sale->total_amount - (float) $sale->payment_received);
+            $sale->payment_status = $sale->payment_received >= $sale->total_amount ? 'paid' : ($sale->payment_received > 0 ? 'partial' : 'unpaid');
             $sale->save();
 
             if ($sale->payment_received > 0) SalePayment::create(['business_id'=>$business->id,'sale_id'=>$sale->id,'user_id'=>$request->user()->id,'amount'=>$sale->payment_received,'currency'=>$sale->currency,'paid_at'=>now()]);
@@ -177,7 +190,7 @@ class SaleController
         $data = $request->validate(['amount'=>'required|numeric|min:0.01','paid_at'=>'nullable|date','notes'=>'nullable|string','idempotency_key'=>'nullable|string|max:100']);
         if (!empty($data['idempotency_key']) && SalePayment::where('business_id',$sale->business_id)->where('idempotency_key',$data['idempotency_key'])->exists()) return response()->json(['data'=>$sale->load('payments'),'duplicate'=>true]);
         if ((float) $data['amount'] > (float) $sale->outstanding_balance) return response()->json(['message'=>'Payment exceeds outstanding balance.'],422);
-        DB::transaction(function () use ($request,$sale,$data) { SalePayment::create(['business_id'=>$sale->business_id,'sale_id'=>$sale->id,'user_id'=>$request->user()->id,'amount'=>$data['amount'],'currency'=>$sale->currency,'paid_at'=>$data['paid_at'] ?? now(),'idempotency_key'=>$data['idempotency_key'] ?? null,'notes'=>$data['notes'] ?? null]); $sale->payment_received += $data['amount']; $sale->outstanding_balance = max(0,(float)$sale->total_amount-(float)$sale->payment_received); $sale->save(); });
+        DB::transaction(function () use ($request,$sale,$data) { SalePayment::create(['business_id'=>$sale->business_id,'sale_id'=>$sale->id,'user_id'=>$request->user()->id,'amount'=>$data['amount'],'currency'=>$sale->currency,'paid_at'=>$data['paid_at'] ?? now(),'idempotency_key'=>$data['idempotency_key'] ?? null,'notes'=>$data['notes'] ?? null]); $sale->payment_received += $data['amount']; $sale->outstanding_balance = max(0,(float)$sale->total_amount-(float)$sale->payment_received); $sale->payment_status = $sale->payment_received >= $sale->total_amount ? 'paid' : 'partial'; $sale->save(); });
         return response()->json(['data'=>$sale->fresh()->load('payments')]);
     }
 

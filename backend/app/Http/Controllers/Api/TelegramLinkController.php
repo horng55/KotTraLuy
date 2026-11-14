@@ -132,7 +132,7 @@ class TelegramLinkController
 
     public function notificationSettings(Request $request, TelegramInventoryNotifier $notifier)
     {
-        return response()->json([...$notifier->preferences($request->user()->business), 'preferred_language' => $request->user()->preferred_language ?: 'en']);
+        return response()->json([...$notifier->preferences($request->user()->business), 'preferred_language' => $request->user()->preferred_language ?: 'en', 'test_available' => $this->testAvailable()]);
     }
 
     public function updateNotificationSettings(Request $request, TelegramInventoryNotifier $notifier)
@@ -153,15 +153,21 @@ class TelegramLinkController
         unset($data['preferred_language']);
         $request->user()->forceFill(['preferred_language' => $language])->save();
         $request->user()->business->forceFill(['notification_preferences' => $data])->save();
-        return response()->json([...$notifier->preferences($request->user()->business->fresh()), 'preferred_language' => $language]);
+        return response()->json([...$notifier->preferences($request->user()->business->fresh()), 'preferred_language' => $language, 'test_available' => $this->testAvailable()]);
     }
 
     public function sendTestNotification(Request $request, TelegramInventoryNotifier $notifier)
     {
+        abort_unless($this->testAvailable(), 404, 'Telegram test alerts are available only in development and testing environments.');
         $user = $request->user();
         abort_unless($user->telegram_chat_id && ($user->role === 'owner' || $user->telegram_enabled), 422, 'Connect Telegram before sending a test notification.');
         $result = $notifier->sendTest($user);
         return response()->json(['accepted' => true, 'telegram_message_id' => $result['message_id']]);
+    }
+
+    private function testAvailable(): bool
+    {
+        return in_array(app()->environment(), ['local', 'testing'], true);
     }
 
     private function botUrl(string $code): string

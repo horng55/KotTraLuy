@@ -43,9 +43,21 @@ class InventoryAlertService
         if ($batch) $query->where('stock_batch_id', $batch->id); else $query->whereNull('stock_batch_id');
         if ($condition) {
             (clone $query)->where('condition', '!=', $condition)->whereNull('resolved_at')->update(['resolved_at' => now()]);
-            $query->where('condition', $condition)->whereNull('resolved_at')->firstOrCreate(['business_id'=>$business->id,'product_id'=>$product->id,'stock_batch_id'=>$batch?->id,'condition'=>$condition]);
+            $alert = $query->where('condition', $condition)->whereNull('resolved_at')->firstOrCreate(['business_id'=>$business->id,'product_id'=>$product->id,'stock_batch_id'=>$batch?->id,'condition'=>$condition]);
+            if (!$batch && in_array($condition, ['low_stock', 'out_of_stock'], true)) {
+                $today = Carbon::now($business->timezone ?: 'Asia/Phnom_Penh')->toDateString();
+                $quantity = $product->batches()->exists()
+                    ? (int) $product->batches()->where('quantity_remaining', '>', 0)->where(fn ($query) => $query->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today))->sum('quantity_remaining')
+                    : (int) $product->stock_quantity;
+                \App\Models\WorkspaceNotification::where('business_id', $business->id)->where('event_key', 'inventory.alert:'.$alert->id)->get()->each(function ($notification) use ($product, $quantity): void {
+                    $data = $notification->data;
+                    $data['params'] = [...($data['params'] ?? []), 'product' => $product->name, 'quantity' => $quantity, 'unit' => $product->unit];
+                    $notification->update(['data' => $data]);
+                });
+            }
             if ($batch && in_array($condition,['expired','expires_today','expiring_soon'])) {
-                $params = ['product'=>$product->name,'quantity'=>$batch->quantity_remaining,'unit'=>$product->unit,'expiry_date'=>$batch->expiry_date->toDateString(),'batch_id'=>$batch->id];
+                $daysRemaining = Carbon::now($business->timezone ?: 'Asia/Phnom_Penh')->startOfDay()->diffInDays($batch->expiry_date, false);
+                $params = ['product'=>$product->name,'quantity'=>$batch->quantity_remaining,'unit'=>$product->unit,'expiry_date'=>$batch->expiry_date->toDateString(),'days_remaining'=>$daysRemaining,'batch_id'=>$batch->id,'batch_code'=>$batch->batch_code];
                 $event = 'expiration:'.$batch->id.':'.$batch->expiry_date->toDateString().':'.$condition.':'.$business->expiry_warning_days;
                 app(WorkspaceNotifier::class)->publish($business->id,'inventory.'.$condition,$event,$params,'product',$product->id);
                 \App\Models\WorkspaceNotification::where('business_id',$business->id)->where('event_key',$event)->get()->each(function ($notification) use ($params) { $data = $notification->data; if (($data['params'] ?? []) !== $params) { $data['params']=$params; $notification->update(['data'=>$data]); } });

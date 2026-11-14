@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\TelegramNotificationDelivery;
 use App\Services\TelegramInventoryNotifier;
-use App\Services\TelegramRateLimitException;
+use App\Services\{TelegramPermanentFailureException, TelegramRateLimitException};
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -53,6 +53,9 @@ class SendTelegramInventoryNotification implements ShouldQueue
         } catch (TelegramRateLimitException $failure) {
             $delivery->update(['status' => 'pending', 'next_attempt_at' => now()->addSeconds($failure->retryAfter), 'last_error' => $failure->getMessage()]);
             $this->release($failure->retryAfter);
+        } catch (TelegramPermanentFailureException $failure) {
+            $delivery->update(['status' => 'failed', 'last_error' => $failure->getMessage(), 'next_attempt_at' => null]);
+            Log::notice('Telegram inventory notification permanently rejected.', ['delivery_id' => $delivery->id, 'error' => $failure->getMessage()]);
         } catch (\Throwable $failure) {
             $delivery->update(['status' => 'pending', 'last_error' => $failure->getMessage(), 'next_attempt_at' => now()->addMinutes(5)]);
             Log::warning('Telegram inventory notification failed.', ['delivery_id' => $delivery->id, 'error' => $failure->getMessage()]);

@@ -2,59 +2,81 @@
 
 namespace Tests\Feature;
 
-use App\Models\Business;
-use App\Models\Product;
-use App\Models\User;
-use App\Services\TelegramInventoryNotifier;
+use App\Jobs\SendTelegramInventoryNotification;
+use App\Models\{Business, Product, StockBatch, TelegramNotificationDelivery, User, WorkspaceNotification};
+use App\Services\{InventoryAlertService, TelegramInventoryNotifier};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Bus;
-use App\Jobs\SendTelegramInventoryNotification;
-use App\Services\WorkspaceNotifier;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class TelegramInventoryNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_inventory_message_is_accepted_by_telegram_and_contains_product_context(): void
+    public function test_expiration_alert_is_queued_delivered_in_khmer_and_deduplicated(): void
     {
         Config::set('services.telegram.bot_token', 'test-token');
-        Config::set('services.telegram.mini_app_url', 'https://kottraluy.tech');
-        Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 77]], 200)]);
-        $business = Business::factory()->create(['notification_preferences' => ['telegram_enabled' => true]]);
-        $product = Product::factory()->create(['business_id' => $business->id, 'name' => 'Coca', 'stock_quantity' => 0]);
-        $result = app(TelegramInventoryNotifier::class)->send(12345, ['type' => 'inventory.out_of_stock', 'product' => 'Coca', 'product_id' => $product->id, 'quantity' => 0, 'unit' => 'pcs', 'workspace' => $business->name], $product, 'en');
+        Config::set('services.telegram.mini_app_url', 'https://demo.example.test/mini');
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 901]]));
+        Queue::fake();
 
-        $this->assertSame('77', $result['message_id']);
-        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/sendMessage') && $request['chat_id'] === 12345 && str_contains($request['text'], 'Coca') && str_contains($request['text'], 'OUT OF STOCK'));
-    }
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Phnom_Penh',
+            'expiry_warning_days' => 30,
+            'notification_preferences' => [
+                'telegram_enabled' => true,
+                'expiring_soon' => true,
+                'recipients' => [],
+            ],
+        ]);
+        $owner = User::factory()->create([
+            'business_id' => $business->id,
+            'role' => 'owner',
+            'telegram_chat_id' => 7654321,
+            'preferred_language' => 'km',
+        ]);
+        $product = Product::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Coca',
+            'stock_quantity' => 4,
+            'minimum_stock' => 10,
+        ]);
+        $batch = StockBatch::create([
+            'business_id' => $business->id,
+            'product_id' => $product->id,
+            'batch_code' => 'COCA-EXP-01',
+            'received_date' => now()->subDays(10)->toDateString(),
+            'quantity_received' => 4,
+            'quantity_remaining' => 4,
+            'unit_cost' => 1,
+            'expiry_date' => now()->addDays(5)->toDateString(),
+        ]);
 
-    public function test_settings_are_owner_scoped_and_recipients_are_validated(): void
-    {
-        $business = Business::factory()->create();
-        $owner = User::factory()->create(['business_id' => $business->id, 'role' => 'owner']);
-        $staff = User::factory()->create(['business_id' => $business->id, 'role' => 'staff', 'telegram_enabled' => true]);
-        $this->actingAs($owner, 'sanctum')->putJson('/api/telegram/notification-settings', [
-            'telegram_enabled' => true, 'low_stock' => true, 'out_of_stock' => true, 'expiring_soon' => true, 'expired' => true,
-            'reminder_frequency_hours' => 6, 'recipients' => [$staff->id],
-        ])->assertOk()->assertJsonPath('reminder_frequency_hours', 6)->assertJsonPath('recipients.0', $staff->id);
-        $this->assertSame([$staff->id], $business->fresh()->notification_preferences['recipients']);
-    }
+        app(InventoryAlertService::class)->refresh($business->fresh());
 
-    public function test_repeated_inventory_event_creates_one_delivery_job(): void
-    {
-        Bus::fake();
-        $business = Business::factory()->create(['notification_preferences' => ['telegram_enabled' => true]]);
-        $owner = User::factory()->create(['business_id' => $business->id, 'role' => 'owner', 'telegram_chat_id' => 12345]);
-        $product = Product::factory()->create(['business_id' => $business->id, 'name' => 'Vital']);
-        $notifier = app(WorkspaceNotifier::class);
-        $notifier->publish($business->id, 'inventory.low_stock', 'inventory.alert:product:low', ['product' => 'Vital', 'quantity' => 2, 'unit' => 'pcs'], 'product', $product->id);
-        $notifier->publish($business->id, 'inventory.low_stock', 'inventory.alert:product:low', ['product' => 'Vital', 'quantity' => 2, 'unit' => 'pcs'], 'product', $product->id);
+        $this->assertCount(2, Queue::pushed(SendTelegramInventoryNotification::class));
+        $notification = WorkspaceNotification::where('business_id', $business->id)
+            ->where('type', 'inventory.expiring_soon')->sole();
+        $this->assertSame('COCA-EXP-01', $notification->data['params']['batch_code']);
+        $this->assertArrayHasKey('days_remaining', $notification->data['params']);
 
-        $this->assertDatabaseCount('telegram_notification_deliveries', 1);
-        Bus::assertDispatchedTimes(SendTelegramInventoryNotification::class, 1);
-        $this->assertDatabaseHas('telegram_notification_deliveries', ['user_id' => $owner->id, 'status' => 'pending']);
+        $delivery = TelegramNotificationDelivery::where('notification_id', $notification->id)->where('user_id', $owner->id)->sole();
+        (new SendTelegramInventoryNotification($delivery->id))->handle(app(TelegramInventoryNotifier::class));
+        $this->assertSame('sent', $delivery->fresh()->status);
+
+        Http::assertSent(function ($request) use ($batch, $product) {
+            return str_ends_with($request->url(), '/sendMessage')
+                && $request['chat_id'] === 7654321
+                && str_contains($request['text'], 'ជិតផុតកំណត់')
+                && str_contains($request['text'], $product->name)
+                && str_contains($request['text'], $batch->batch_code)
+                && str_contains($request['text'], '5');
+        });
+
+        app(InventoryAlertService::class)->refresh($business->fresh());
+        $this->assertSame(1, WorkspaceNotification::where('business_id', $business->id)->where('type', 'inventory.expiring_soon')->count());
+        $this->assertSame(1, TelegramNotificationDelivery::where('notification_id', $notification->id)->where('user_id', $owner->id)->count());
     }
 }

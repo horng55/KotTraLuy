@@ -76,9 +76,12 @@ class FinancialExcelService
         $rows[] = $this->row('spacer', []);
         $rows[] = $this->row('notice', [self::DISCLAIMER]);
         $rows[] = $this->row('notice', [self::DATA_NOTICE]);
-        if (!empty($report['limitations'])) {
+        if (!empty($report['limitations']) || !empty($report['limitation_codes'])) {
             $rows[] = $this->row('section', [$l['limitations']]);
-            foreach ($report['limitations'] as $limitation) {
+            $limitations = !empty($report['limitation_codes'])
+                ? array_map(fn ($code) => $this->limitation($code, $language), $report['limitation_codes'])
+                : (array) ($report['limitations'] ?? []);
+            foreach ($limitations as $limitation) {
                 $rows[] = $this->row('note', ['• ' . (string) $limitation]);
             }
         }
@@ -191,6 +194,34 @@ class FinancialExcelService
             'unavailable' => $this->km('មិនមានទិន្នន័យ'), 'available' => $this->km('មានទិន្នន័យ'),
             'incomplete' => $this->km('មិនពេញលេញ'),
         ];
+    }
+
+    private function limitation(string $code, string $language): string
+    {
+        $english = [
+            'recorded_activity_only' => 'Statements describe recorded activity only; sales returns/refunds have no separate ledger.',
+            'unrecorded_accounts' => 'Opening balances, loans, owner transactions, equipment and bank transfers are not recorded; a complete balance sheet cannot be produced.',
+            'partial_cash_flow' => 'Customer receipts are recorded, but supplier/expense payment status is unknown. Net cash flow and investing/financing totals are unavailable.',
+            'legacy_cost_currency' => 'Opening/legacy unit costs use the workspace cost currency; purchases use their recorded currency. Costs are never converted.',
+            'inventory_snapshot' => 'Inventory is a current quantity snapshot. Historical or future inventory valuation is unavailable.',
+            'separate_currencies' => 'Other currencies exist in this period. They are excluded; no exchange rates or currency conversion are applied.',
+            'incomplete_costs' => 'Some costs are missing or use another currency. COGS and profit totals are unavailable rather than estimated.',
+            'incomplete_receivables' => 'Payment history is incomplete. Receivables cannot be reliably reconstructed for this cutoff.',
+            'incomplete_inventory' => 'Some recorded stock quantities have no matching batch cost history. Inventory valuation is unavailable.',
+        ];
+        if ($language !== 'km') return $english[$code] ?? $code;
+        $khmer = [
+            'recorded_activity_only' => 'របាយការណ៍បង្ហាញតែសកម្មភាពដែលបានកត់ត្រា។ មិនមានបញ្ជីដាច់ដោយឡែកសម្រាប់ការបង្វិលទំនិញ ឬការសងប្រាក់ទេ។',
+            'unrecorded_accounts' => 'សមតុល្យដើមគ្រា ប្រាក់កម្ចី ប្រតិបត្តិការម្ចាស់ ឧបករណ៍ និងការផ្ទេរធនាគារ មិនត្រូវបានកត់ត្រាទេ ដូច្នេះមិនអាចបង្កើតតារាងតុល្យការពេញលេញបានទេ។',
+            'partial_cash_flow' => 'ប្រាក់ទទួលពីអតិថិជនត្រូវបានកត់ត្រា ប៉ុន្តែស្ថានភាពទូទាត់ចំណាយ និងអ្នកផ្គត់ផ្គង់មិនត្រូវបានកត់ត្រាទេ។',
+            'legacy_cost_currency' => 'ថ្លៃដើមចាស់ប្រើរូបិយប័ណ្ណថ្លៃដើមរបស់កន្លែងធ្វើការ។ មិនមានការបម្លែងថ្លៃដើមទេ។',
+            'inventory_snapshot' => 'ស្តុកជាទិន្នន័យចំនួនបច្ចុប្បន្ន។ មិនមានតម្លៃស្តុកសម្រាប់កាលបរិច្ឆេទអតីតកាល ឬអនាគតទេ។',
+            'separate_currencies' => 'រូបិយប័ណ្ណផ្សេងទៀតត្រូវបានដកចេញ។ មិនមានការប្រើអត្រាប្ដូរប្រាក់ ឬការបម្លែងទេ។',
+            'incomplete_costs' => 'ថ្លៃដើមមួយចំនួនមិនមាន ឬប្រើរូបិយប័ណ្ណផ្សេង។ មិនប៉ាន់ស្មានថ្លៃដើមទំនិញលក់ ឬចំណេញទេ។',
+            'incomplete_receivables' => 'ប្រវត្តិការទូទាត់មិនពេញលេញ។ មិនអាចកំណត់ប្រាក់ត្រូវទទួលបានត្រឹមត្រូវទេ។',
+            'incomplete_inventory' => 'ចំនួនស្តុកមួយចំនួនមិនមានប្រវត្តិថ្លៃដើមកញ្ចប់ដែលត្រូវគ្នាទេ។ មិនអាចកំណត់តម្លៃស្តុកបានទេ។',
+        ];
+        return $khmer[$code] ?? $code;
     }
 
     private function km(string $value): string

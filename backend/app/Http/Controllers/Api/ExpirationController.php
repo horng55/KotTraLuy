@@ -19,7 +19,9 @@ class ExpirationController
         $expired = (clone $base)->where('expiry_date','<',$today->toDateString());
         $soon = (clone $base)->where('expiry_date','>=',$today->toDateString())->where('expiry_date','<',$end);
         $rows = (clone $base)->whereNotNull('expiry_date')->where('expiry_date','<',$end)
-            ->with('product:id,name,unit')->orderBy('expiry_date')->orderBy('id')->paginate(10);
+            // image_storage_key remains hidden from JSON, but is needed by the
+            // Product image_available accessor used by the shared thumbnail.
+            ->with('product:id,name,unit,image_storage_key')->orderBy('expiry_date')->orderBy('id')->paginate(10);
         $rows->getCollection()->transform(function ($batch) use ($today) {
             $days = (int) $today->diffInDays($batch->expiry_date,false);
             return [...$batch->toArray(),'days_remaining'=>$days,'expiration_status'=>$days < 0 ? 'expired' : ($days === 0 ? 'expires_today' : 'expiring_soon')];

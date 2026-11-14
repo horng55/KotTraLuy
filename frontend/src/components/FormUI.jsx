@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Package, Search, X } from 'lucide-react';
 import { ProductThumbnail } from './ProductImage';
 
+
 export function AppDialog({ title, section, description, onClose, busy, children, footer, language = 'en' }) {
   const titleId = useId();
   const dialog = useRef(null);
@@ -80,6 +81,6 @@ export function ProductSelect({ products, value, onChange, placeholder, emptyLab
   const matches = products.filter(p => `${p.name} ${p.sku || ''}`.toLowerCase().includes(query.toLowerCase()));
   useEffect(() => { if (open) search.current?.focus(); }, [open]);
   useEffect(() => { const outside = event => { if (!container.current?.contains(event.target)) setOpen(false); }; document.addEventListener('pointerdown', outside); return () => document.removeEventListener('pointerdown', outside); }, []);
-  const select = product => { onChange(String(product.id)); setOpen(false); setQuery(''); trigger.current?.focus(); };
+  const select = product => { if (Number(product.sellable_quantity ?? product.stock_quantity ?? 0) <= 0) return; onChange(String(product.id)); setOpen(false); setQuery(''); trigger.current?.focus(); };
   return <div className="kt-product-select" ref={container} onKeyDown={event => { if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus(); } if (event.key === 'ArrowDown' && !open) { event.preventDefault(); setOpen(true); } }}><button {...accessibility} id={id} data-autofocus ref={trigger} type="button" className="kt-input kt-select-trigger" aria-haspopup="listbox" aria-controls={listId} aria-expanded={open} disabled={disabled} onClick={() => setOpen(!open)}><span>{selected ? selected.name : placeholder}</span><ChevronDown size={16} /></button>{open && <div className="kt-select-menu"><div className="kt-search"><Search size={15} /><input ref={search} value={query} placeholder={placeholder} aria-label={placeholder} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); container.current.querySelector('[role=option]')?.focus(); } if (event.key === 'Enter') { event.preventDefault(); if (matches.length === 1) select(matches[0]); } }} /></div><div id={listId} role="listbox" aria-label={placeholder}>{matches.length ? matches.map((p, index) => <button type="button" role="option" aria-selected={String(value) === String(p.id)} key={p.id} onClick={() => select(p)} onKeyDown={event => { if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); const options = container.current.querySelectorAll('[role=option]'); options[(index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length].focus(); } }}><strong>{p.name}</strong><small>{p.stock_quantity} {p.unit || ''} · {stockLabel}</small></button>) : <p className="kt-field-hint">{emptyLabel}</p>}</div></div>}</div>;
 }

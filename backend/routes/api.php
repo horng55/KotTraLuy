@@ -13,12 +13,17 @@ use App\Http\Controllers\Api\TelegramLinkController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\WasteController;
 use App\Http\Controllers\Api\FinancingController;
+use App\Http\Controllers\Api\InvitationController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/telegram/webhook', [TelegramBotController::class, 'webhook'])->middleware('throttle:120,1');
 Route::post('/telegram/mini-app/auth', [TelegramLinkController::class, 'authenticateMiniApp'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('throttle:30,1');
+Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware('throttle:10,1');
+Route::get('/reports/pdf-download/{token}', [\App\Http\Controllers\Api\PdfExportController::class, 'download'])
+    ->where('token', '[A-Za-z0-9]{64}')->middleware('throttle:30,1')->name('reports.pdf.download');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -32,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/notifications/{notification}/read', [\App\Http\Controllers\Api\NotificationController::class, 'read']);
         Route::patch('/notifications/{notification}/unread', [\App\Http\Controllers\Api\NotificationController::class, 'unread']);
         Route::get('/users', [UserManagementController::class, 'index']);
+        Route::get('/invitations', [InvitationController::class, 'index']);
+        Route::post('/invitations', [InvitationController::class, 'store']);
+        Route::post('/invitations/{invitation}/revoke', [InvitationController::class, 'revoke']);
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::patch('/users/{user}', [UserManagementController::class, 'update']);
         Route::post('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword']);
@@ -66,6 +74,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/range.csv', [ReportController::class, 'csv']);
         Route::get('/reports/financial', [ReportController::class, 'financial']);
         Route::get('/reports/financial.xlsx', [ReportController::class, 'financialExcel']);
+        Route::get('/reports/sales.xlsx', [ReportController::class, 'salesExcel']);
+        Route::post('/reports/pdf-download', [\App\Http\Controllers\Api\PdfExportController::class, 'store'])->middleware('throttle:10,1');
         Route::get('/financing/overview', [FinancingController::class, 'overview']);
         Route::get('/financing/products', [FinancingController::class, 'products']);
         Route::put('/financing/profile', [FinancingController::class, 'saveProfile']);

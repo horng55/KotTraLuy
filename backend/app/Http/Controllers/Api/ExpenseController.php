@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Expense;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Services\WorkspaceNotifier;
 
 class ExpenseController
 {
@@ -25,20 +27,27 @@ class ExpenseController
             'amount' => 'required|numeric|min:0',
             'expense_date' => 'required|date',
             'notes' => 'nullable|string',
-            'shift_id' => 'nullable|exists:shifts,id',
+            'shift_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('shifts', 'id')->where('business_id', $request->user()->business_id)],
         ]);
 
-        $expense = Expense::create([
-            'business_id' => $request->user()->business_id,
-            'currency' => $data['currency'] ?? $request->user()->business->currency,
-            'shift_id' => $data['shift_id'] ?? null,
-            'user_id' => $request->user()->id,
-            'category' => $data['category'],
-            'description' => $data['description'],
-            'amount' => $data['amount'],
-            'expense_date' => $data['expense_date'],
-            'notes' => $data['notes'] ?? null,
-        ]);
+        $expense = DB::transaction(function () use ($request, $data) {
+            $business = $request->user()->business;
+            \App\Models\Business::whereKey($business->id)->lockForUpdate()->firstOrFail();
+            return Expense::create([
+                'business_id' => $business->id,
+                'currency' => $data['currency'] ?? $business->currency,
+                'shift_id' => $data['shift_id'] ?? null,
+                'user_id' => $request->user()->id,
+                'category' => trim($data['category']),
+                'description' => trim($data['description']),
+                'amount' => $data['amount'],
+                'expense_date' => $data['expense_date'],
+                'notes' => $data['notes'] ?? null,
+            ]);
+        });
+        app(WorkspaceNotifier::class)->publish($expense->business_id, 'expense.created', 'expense.created:'.$expense->id, [
+            'description' => $expense->description, 'amount' => $expense->amount, 'currency' => $expense->currency,
+        ], 'expense', $expense->id);
 
         return response()->json(['data' => $expense], 201);
     }

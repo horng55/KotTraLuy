@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use App\Services\ContactNormalizer;
 
 class AuthController
 {
@@ -55,8 +56,10 @@ class AuthController
         ]);
 
         $login = strtolower(trim($credentials['login'] ?? $credentials['email']));
+        $phone = ContactNormalizer::phone($login);
         $user = User::whereRaw('LOWER(email) = ?', [$login])
             ->orWhereRaw('LOWER(username) = ?', [$login])
+            ->when($phone, fn ($query) => $query->orWhere('phone', $phone))
             ->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {

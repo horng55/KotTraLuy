@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Services\ReportService;
 use App\Services\FinancialExcelService;
+use App\Services\SalesExcelService;
+use App\Models\Sale;
 use Illuminate\Http\Request;
 
 class ReportController
@@ -28,6 +30,14 @@ class ReportController
         $path = $excel->create($report, $data['language'] ?? 'en');
         $filename = 'KotTraLuy_Financial_Report_' . $data['from'] . '_to_' . $data['to'] . '.xlsx';
         return response()->download($path, $filename, ['Content-Type' => $excel->mime()])->deleteFileAfterSend(true);
+    }
+
+    public function salesExcel(Request $request, SalesExcelService $excel)
+    {
+        $data = $request->validate(['from'=>'required|date_format:Y-m-d','to'=>'required|date_format:Y-m-d|after_or_equal:from','currency'=>'nullable|in:USD,KHR']);
+        $sales = Sale::where('business_id', $request->user()->business_id)->whereBetween('sold_at', [$data['from'].' 00:00:00', $data['to'].' 23:59:59'])->when($data['currency'] ?? null, fn ($q, $currency) => $q->where('currency', $currency))->with(['items.product','user'])->orderBy('sold_at')->get();
+        $path = $excel->create($request->user()->business->name, $data['from'], $data['to'], $sales);
+        return response()->download($path, 'KotTraLuy_Sales_'.$data['from'].'_to_'.$data['to'].'.xlsx', ['Content-Type'=>SalesExcelService::MIME])->deleteFileAfterSend(true);
     }
     public function daily(Request $request, ReportService $reportService)
     {

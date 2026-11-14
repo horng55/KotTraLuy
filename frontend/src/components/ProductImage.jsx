@@ -1,18 +1,33 @@
 import { Camera, ImagePlus, LoaderCircle, RefreshCw, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch } from '../lib/api';
+import { apiDownload } from '../lib/api';
 import { text } from '../lib/i18n';
 
 export function ProductImage({ product, language = 'en', onChange, disabled = false }) {
   const input = useRef(null); const camera = useRef(null);
-  const [preview, setPreview] = useState(null); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
+  const [preview, setPreview] = useState(null); const [loading, setLoading] = useState(Boolean(product?.image_available)); const [error, setError] = useState('');
   const tr = key => text(key, language);
-  useEffect(() => { if (!product?.id || !product.image_available) return; let url; const controller = new AbortController(); setLoading(true); fetch(`/api/products/${product.id}/image`, { headers: { Authorization: `Bearer ${sessionStorage.getItem('biztrack_token')}` }, signal: controller.signal }).then(response => response.ok ? response.blob() : Promise.reject(new Error('image_load_failed'))).then(blob => { url = URL.createObjectURL(blob); setPreview(url); }).catch(failure => { if (failure.name !== 'AbortError') setError(tr('productImage.loadError')); }).finally(() => setLoading(false)); return () => { controller.abort(); if (url) URL.revokeObjectURL(url); }; }, [product?.id, product?.image_available, language]);
-  const select = async file => {
+  useEffect(() => {
+    if (!product?.id || !product.image_available) return;
+    let url; const controller = new AbortController();
+    const load = async () => {
+      try {
+        const { blob } = await apiDownload(`/products/${product.id}/image`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        url = URL.createObjectURL(blob); setPreview(url);
+      } catch {
+        if (!controller.signal.aborted) setError(text('productImage.loadError', language));
+      } finally { if (!controller.signal.aborted) setLoading(false); }
+    };
+    load();
+    return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
+  }, [product?.id, product?.image_available, language]);
+  const select = file => {
     if (!file) return; setError('');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return setError(tr('productImage.invalidType'));
     if (file.size > 5 * 1024 * 1024) return setError(tr('productImage.tooLarge'));
-    try { const image = await createImageBitmap(file, { imageOrientation: 'from-image' }); const scale = Math.min(1, 1600 / Math.max(image.width, image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale)); canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height); const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', .82)); if (!blob) throw new Error(); const optimized = new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, { type: 'image/webp' }); setPreview(URL.createObjectURL(blob)); onChange({ file: optimized, remove: false }); image.close?.(); } catch { setError(tr('productImage.invalidFile')); }
+    // The server validates and optimizes images, including on older WebViews.
+    setPreview(URL.createObjectURL(file)); onChange({ file, remove: false });
   };
   const remove = () => { setPreview(null); setError(''); onChange({ file: null, remove: true }); };
   const open = ref => ref.current?.click();
@@ -23,6 +38,13 @@ export function ProductImage({ product, language = 'en', onChange, disabled = fa
 
 export function ProductThumbnail({ product, size = 44, alt = '' }) {
   const [src, setSrc] = useState('');
-  useEffect(() => { if (!product?.id || !product.image_available) { setSrc(''); return; } let url; const controller = new AbortController(); fetch(`/api/products/${product.id}/image`, { headers: { Authorization: `Bearer ${sessionStorage.getItem('biztrack_token')}` }, signal: controller.signal }).then(response => response.ok ? response.blob() : Promise.reject()).then(blob => { url = URL.createObjectURL(blob); setSrc(url); }).catch(() => {}); return () => { controller.abort(); if (url) URL.revokeObjectURL(url); }; }, [product?.id, product?.image_available]);
-  return src ? <img className="product-thumbnail" style={{ width: size, height: size }} src={src} alt={alt || product?.name || ''}/> : <span className="product-thumbnail-placeholder" style={{ width: size, height: size }} aria-hidden="true"><ImagePlus size={Math.max(16, Math.round(size * .38))}/></span>;
+  useEffect(() => {
+    if (!product?.id || !product.image_available) return;
+    let url; const controller = new AbortController();
+    apiDownload(`/products/${product.id}/image`, { signal: controller.signal })
+      .then(({ blob }) => { if (!controller.signal.aborted) { url = URL.createObjectURL(blob); setSrc({ id: product.id, url }); } })
+      .catch(failure => { if (failure.name !== 'AbortError') console.error('Product image could not be loaded', failure); });
+    return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
+  }, [product?.id, product?.image_available]);
+  return product?.image_available && src.id === product?.id ? <img className="product-thumbnail" style={{ width: size, height: size }} src={src.url} alt={alt || product?.name || ''}/> : <span className="product-thumbnail-placeholder" style={{ width: size, height: size }} aria-hidden="true"><ImagePlus size={Math.max(16, Math.round(size * .38))}/></span>;
 }

@@ -1153,5 +1153,35 @@
   "telegram.notification_recipients": "អ្នកទទួលការជូនដំណឹង",
   "telegram.send_test_notification": "ផ្ញើការជូនដំណឹងសាកល្បង",
   "telegram.notification_settings_saved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram។",
-  "telegram.test_notification_sent": "Telegram បានទទួលការជូនដំណឹងសាកល្បង។"
+  "telegram.test_notification_sent": "Telegram បានទទួលការជូនដំណឹងសាកល្បង។",
+  "common.generating_pdf": "កំពុងបង្កើត PDF…",
+  "common.pdf_export_failed": "មិនអាចនាំចេញ PDF បានទេ។ សូមព្យាយាមម្តងទៀត។"
+  ,"paymentMethod": "វិធីទូទាត់", "cash": "សាច់ប្រាក់", "khqr": "KHQR / ផ្ទេរប្រាក់តាមធនាគារ", "other": "ផ្សេងទៀត", "confirmPayment": "បញ្ជាក់ថាបានទទួលការទូទាត់", "paymentReceivedConfirm": "ខ្ញុំបញ្ជាក់ថាបានទទួលការទូទាត់នេះ។"
+  ,"team.invite_employee": "អញ្ជើញបុគ្គលិក",
+  "team.invite_employee_description": "បង្កើតការអញ្ជើញមានសុវត្ថិភាព។ សិទ្ធិត្រូវបានផ្តល់បន្ទាប់ពីបុគ្គលិកទទួលយក និងបង្កើតគណនី។",
+  "team.employee_name_optional": "ឈ្មោះបុគ្គលិក (ជាជម្រើស)",
+  "team.email_or_phone": "លេខទូរស័ព្ទ ឬអ៊ីមែល",
+  "team.contact_placeholder": "name@example.com ឬ +855 12 345 678",
+  "team.email_or_phone_help": "ប្រើអ៊ីមែល ឬលេខអន្តរជាតិ ដូចជា +855 12 345 678។",
+  "team.send_invitation": "ផ្ញើការអញ្ជើញ",
+  "team.invitation_created": "បានបង្កើតការអញ្ជើញ។",
+  "team.invitation_pending": "កំពុងរង់ចាំ",
+  "team.share_invitation_link": "មិនទាន់កំណត់អ្នកផ្តល់សេវាផ្ញើទេ។ សូមចែករំលែកតំណសុវត្ថិភាពនេះដោយដៃ។",
+  "team.invitation_sent": "បានផ្ញើការអញ្ជើញតាមបណ្តាញដែលបានជ្រើសរើស។",
+  "team.invitation_link": "តំណការអញ្ជើញ",
+  "team.copy_link": "ចម្លងតំណ",
+  "team.invitations": "ការអញ្ជើញ",
+  "team.contact": "ទំនាក់ទំនង",
+  "team.no_invitations": "មិនទាន់មានការអញ្ជើញទេ។",
+  "team.manager": "អ្នកគ្រប់គ្រង",
+  "team.cashier": "អ្នកគិតលុយ",
+  "team.invitation_accepted": "បានទទួលយក",
+  "team.invitation_expired": "ផុតកំណត់",
+  "team.invitation_revoked": "បានដកហូត",
+  "team.revoke_invitation": "ដកហូតការអញ្ជើញ",
+  "team.revoke_invitation_confirm": "ដកហូតការអញ្ជើញនេះឬ?",
+  "common.done": "រួចរាល់"
+  ,"team.accept_invitation": "ទទួលយកការអញ្ជើញ"
+  ,"team.accept_invitation_description": "ចូលរួមកន្លែងធ្វើការនេះជា {role}។ បង្កើតពាក្យសម្ងាត់ផ្ទាល់ខ្លួនដើម្បីបញ្ចប់ការរៀបចំ។ Telegram ត្រូវភ្ជាប់ដោយឡែកបន្ទាប់ពីចូល។",
+  "auth.confirm_password": "បញ្ជាក់ពាក្យសម្ងាត់"
 }

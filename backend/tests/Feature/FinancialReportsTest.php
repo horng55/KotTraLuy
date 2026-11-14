@@ -136,4 +136,5 @@ class FinancialReportsTest extends TestCase
         $this->actingAs($user, 'sanctum');
         $this->getJson('/api/reports/financial?from=2026-11-01&to=2026-11-30')->assertOk()->assertJsonPath('profit_and_loss.sales_revenue', 0);
     }
+
 }

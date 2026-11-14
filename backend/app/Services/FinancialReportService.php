@@ -16,19 +16,24 @@ class FinancialReportService
     {
         return DB::transaction(function () use ($business, $from, $to, $currency) {
             $currency = $currency ?: $business->currency;
+            // Legacy records may have a null currency. Treat them as the
+            // workspace currency without performing any conversion.
+            $inCurrency = static fn ($query) => $query->where(function ($scope) use ($currency, $business) {
+                $scope->where('currency', $currency)->when($currency === $business->currency, fn ($same) => $same->orWhereNull('currency'));
+            });
             $start = Carbon::parse($from)->startOfDay();
             $end = Carbon::parse($to)->endOfDay();
-            $sales = Sale::where('business_id', $business->id)->where('currency', $currency)
+            $sales = $inCurrency(Sale::where('business_id', $business->id))
                 ->whereBetween('sold_at', [$start, $end])->with('items.allocations')->get();
-            $allSales = Sale::where('business_id', $business->id)->where('currency', $currency)
+            $allSales = $inCurrency(Sale::where('business_id', $business->id))
                 ->where('sold_at', '<=', $end)->with(['payments' => fn ($query) => $query->where('business_id', $business->id)])->get();
-            $expenses = Expense::where('business_id', $business->id)->where('currency', $currency)
+            $expenses = $inCurrency(Expense::where('business_id', $business->id))
                 ->whereBetween('expense_date', [$from, $to])->get();
             $currencies = collect([
-                ...Sale::where('business_id', $business->id)->whereBetween('sold_at', [$start, $end])->pluck('currency'),
+                ...Sale::where('business_id', $business->id)->whereBetween('sold_at', [$start, $end])->pluck('currency')->map(fn ($value) => $value ?: $business->currency),
                 ...Purchase::where('business_id', $business->id)->whereBetween('purchase_date', [$from, $to])->pluck('currency'),
-                ...Expense::where('business_id', $business->id)->whereBetween('expense_date', [$from, $to])->pluck('currency'),
-                ...DB::table('sale_payments')->where('business_id', $business->id)->whereBetween('paid_at', [$start, $end])->pluck('currency'),
+                ...Expense::where('business_id', $business->id)->whereBetween('expense_date', [$from, $to])->pluck('currency')->map(fn ($value) => $value ?: $business->currency),
+                ...DB::table('sale_payments')->where('business_id', $business->id)->whereBetween('paid_at', [$start, $end])->pluck('currency')->map(fn ($value) => $value ?: $business->currency),
             ])->filter()->unique()->sort()->values()->all();
 
             // Costs have their purchase currency, or the workspace cost currency
@@ -70,7 +75,7 @@ class FinancialReportService
                 $ledgerTotal = (float) $sale->payments->sum('amount');
                 if (abs($ledgerTotal - (float) $sale->payment_received) > 0.005
                     || abs((float) $sale->total_amount - (float) $sale->payment_received - (float) $sale->outstanding_balance) > 0.005
-                    || $sale->payments->contains(fn ($payment) => $payment->currency !== $currency)) {
+                    || $sale->payments->contains(fn ($payment) => ($payment->currency ?: $business->currency) !== $currency)) {
                     $receivablesComplete = false;
                 }
                 $paidAtCutoff = $sale->payments->filter(fn ($payment) => $payment->paid_at->lte($end))->sum('amount');
@@ -83,7 +88,7 @@ class FinancialReportService
             $inventory = $inventoryComplete && $to === now($business->timezone ?: config('app.timezone'))->toDateString()
                 ? round($batches->filter(fn ($batch) => ($batch->purchase_currency ?: $business->currency) === $currency)
                     ->sum(fn ($batch) => (float) $batch->quantity_remaining * (float) $batch->unit_cost), 2) : null;
-            $receipts = (float) DB::table('sale_payments')->where('business_id', $business->id)->where('currency', $currency)
+            $receipts = (float) DB::table('sale_payments')->where('business_id', $business->id)->where(function ($scope) use ($currency, $business) { $scope->where('currency', $currency)->when($currency === $business->currency, fn ($same) => $same->orWhereNull('currency')); })
                 ->whereBetween('paid_at', [$start, $end])->sum('amount');
 
             $codes = ['recorded_activity_only', 'unrecorded_accounts', 'partial_cash_flow', 'legacy_cost_currency', 'inventory_snapshot'];
@@ -115,7 +120,7 @@ class FinancialReportService
                 'limitations' => ['Only records in the requested currency are included; no conversion is performed.', 'Balance sheet and cash flow are incomplete because opening balances and other account movements are not recorded.', 'Inventory quantities are available only as a current snapshot.'],
                 'data_coverage' => ['sales' => $sales->count(), 'expenses' => $expenses->count(), 'historical_sales' => $allSales->count(),
                     'historical_expenses' => Expense::where('business_id', $business->id)->where('currency', $currency)->where('expense_date', '<=', $to)->count(),
-                    'currency_records' => $currencies, 'selected_currency' => $currency, 'customer_payments' => DB::table('sale_payments')->where('business_id', $business->id)->where('currency', $currency)->whereBetween('paid_at', [$start, $end])->count()],
+                    'currency_records' => $currencies, 'selected_currency' => $currency, 'customer_payments' => DB::table('sale_payments')->where('business_id', $business->id)->where(function ($scope) use ($currency, $business) { $scope->where('currency', $currency)->when($currency === $business->currency, fn ($same) => $same->orWhereNull('currency')); })->whereBetween('paid_at', [$start, $end])->count()],
             ];
         });
     }

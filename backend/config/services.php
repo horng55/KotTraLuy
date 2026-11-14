@@ -43,4 +43,9 @@ return [
         'mini_app_init_data_ttl' => env('TELEGRAM_MINI_APP_INIT_DATA_TTL', 600),
     ],
 
+    'invitation' => [
+        'email_provider' => env('INVITATION_EMAIL_PROVIDER'),
+        'sms_webhook_url' => env('INVITATION_SMS_WEBHOOK_URL'),
+    ],
+
 ];

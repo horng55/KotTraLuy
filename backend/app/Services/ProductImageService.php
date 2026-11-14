@@ -17,6 +17,21 @@ class ProductImageService
         }
 
         $contents = file_get_contents($file->getRealPath());
+        $info = @getimagesizefromstring($contents ?: '');
+        $extension = match ($info[2] ?? null) {
+            IMAGETYPE_JPEG => 'jpg',
+            IMAGETYPE_PNG => 'png',
+            IMAGETYPE_WEBP => 'webp',
+            default => null,
+        };
+        if (!$extension) throw new \InvalidArgumentException('The uploaded file is not a readable image.');
+
+        // Some production PHP builds do not include GD or its WebP encoder.
+        // Keep the validated original when optimization is unavailable.
+        if (!$this->canOptimize()) {
+            return $this->persist($contents, $extension, $businessId, $productId);
+        }
+
         $source = @imagecreatefromstring($contents ?: '');
         if (!$source) throw new \InvalidArgumentException('The uploaded file is not a readable image.');
 
@@ -30,8 +45,20 @@ class ProductImageService
         imagedestroy($canvas); imagedestroy($source);
         if (!$optimized) throw new \RuntimeException('The image could not be optimized.');
 
-        $key = "businesses/{$businessId}/products/{$productId}/" . Str::uuid() . '.webp';
-        Storage::disk('local')->put($key, $optimized);
+        return $this->persist($optimized, 'webp', $businessId, $productId);
+    }
+
+    protected function canOptimize(): bool
+    {
+        return function_exists('imagecreatefromstring') && function_exists('imagewebp');
+    }
+
+    private function persist(string $contents, string $extension, int $businessId, int $productId): string
+    {
+        $key = "businesses/{$businessId}/products/{$productId}/" . Str::uuid() . '.'.$extension;
+        if (!Storage::disk('local')->put($key, $contents)) {
+            throw new \RuntimeException('The product image could not be stored.');
+        }
         return $key;
     }
 

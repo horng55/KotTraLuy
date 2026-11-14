@@ -3,7 +3,7 @@ import { messageText } from '../lib/i18n';
 import { t as tr } from '../lib/i18n';
 import { useEffect, useState } from 'react';
 import { ArrowDownUp, ArrowUpRight, ChevronLeft, ChevronRight, Download, Eye, Filter, Pencil, Plus, ReceiptText, Search, ShoppingBag, Trash2, WalletCards, X } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiDownload, apiFetch } from '../lib/api';
 import QuickActionsPanel from './QuickActionsPanel';
 import ReportsLivePage from './ReportsLivePage';
 import TransactionDialog from './TransactionDialog';
@@ -53,7 +53,11 @@ export default function RecordsHub({ records, business, reload, notificationTarg
   const currentPage = Math.min(page, pages);
   const rows = filtered.slice((currentPage - 1) * 10, currentPage * 10);
   const changeSort = field => setSort(current => ({ field, asc: current.field === field ? !current.asc : true }));
-  const exportRows = () => {
+  const exportRows = async () => {
+    if (tab === 'sales') {
+      try { const today = new Date().toISOString().slice(0, 10); const result = await apiDownload(`/reports/sales.xlsx?${new URLSearchParams({ from: filters.from || '2000-01-01', to: filters.to || today, currency: code })}`); const url = URL.createObjectURL(result.blob); const link = document.createElement('a'); link.href = url; link.download = result.filename || `KotTraLuy_Sales_${code}.xlsx`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); } catch (failure) { setError(failure); }
+      return;
+    }
     const data = [[tr("sales.transaction_id"), tr("common.date"), tr("common.description"), tr("sales.payment_method"), tr("common.amount"), tr("common.currency"), tr("common.status")], ...filtered.map(row => [row.reference, row.date, row.description, row.payment_method || tr("common.not_recorded"), tab === 'unpaid' ? row.outstanding_balance : row.amount, row.currency || currency, domainLabel(statusOf(row))])];
     const csv = data.map(row => row.map(value => `"${String(value ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""')}"`).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));

@@ -27,4 +27,19 @@ class FinancialExcelServiceTest extends TestCase
         $zip->close();
         @unlink($path);
     }
+
+    public function test_khmer_workbook_uses_localized_limitations(): void
+    {
+        $path = (new FinancialExcelService())->create([
+            'business' => ['name' => 'សាកល្បង'], 'from' => '2026-01-01', 'to' => '2026-11-13', 'currency' => 'KHR',
+            'statement_status' => ['profit_and_loss' => 'incomplete', 'balance_sheet' => 'incomplete', 'cash_flow' => 'incomplete'],
+            'limitation_codes' => ['incomplete_costs'], 'profit_and_loss' => ['net_profit' => null], 'balance_sheet' => null, 'cash_flow' => null,
+        ], 'km');
+        $zip = new ZipArchive();
+        self::assertSame(true, $zip->open($path));
+        self::assertStringContainsString('ថ្លៃដើម', $zip->getFromName('xl/worksheets/sheet1.xml'));
+        self::assertStringContainsString('Noto Sans Khmer', $zip->getFromName('xl/styles.xml'));
+        $zip->close();
+        @unlink($path);
+    }
 }

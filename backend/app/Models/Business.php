@@ -24,6 +24,9 @@ class Business extends Model
         'currency',
         'timezone',
         'status',
+        'expiry_warning_days',
+        'daily_digest_enabled',
+        'notification_preferences',
     ];
 
     protected $casts = ['operating_started_on' => 'date', 'expiry_warning_days' => 'integer', 'daily_digest_enabled' => 'boolean', 'notification_preferences' => 'array'];

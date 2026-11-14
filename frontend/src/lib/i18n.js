@@ -51,6 +51,7 @@ export function text(value, language = currentLanguage) {
   if (has(en,literal)) return t(literal,{},language);
   const key = sourceKeys[literal];
   if (key) return t(key, {}, language);
+  if (literal === 'en' || literal === 'km') return literal;
   if (!literal.trim() || /^(?:USD|KHR|KotTraLuy|Telegram|English|EN|ខ្មែរ|[\d\s.,%+−—·/():-]+)$/.test(literal)) return literal;
   return missing(literal,language);
 }
@@ -63,6 +64,7 @@ const errorCodes = {
   password_change_required:'validation.password_required', unauthenticated:'validation.authentication',
   authentication_failed:'auth.invalid_credentials', forbidden:'validation.permission',
   validation_failed:'validation.invalid', insufficient_stock:'expiration.insufficient_stock',
+  invalid_product_image:'productImage.invalidFile', product_save_failed:'validation.server',
 };
 export function messageText(value, language = currentLanguage) {
   if (!value) return '';

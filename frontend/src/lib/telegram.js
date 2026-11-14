@@ -10,6 +10,24 @@ export function isTelegramMiniApp(webApp = getTelegramWebApp()) {
   return Boolean(webApp?.initData);
 }
 
+export function telegramDownloadFile(url, filename, webApp = getTelegramWebApp()) {
+  if (!isTelegramMiniApp(webApp)) return false;
+  const target = new URL(url, window.location.href);
+  if (target.protocol !== 'https:') return false;
+  const major = Number(String(webApp.version || '0').split('.')[0]);
+  if (major >= 8 && typeof webApp.downloadFile === 'function') {
+    try {
+      webApp.downloadFile({ url: target.href, file_name: filename });
+      return true;
+    } catch { /* Older clients can open the temporary download in a browser. */ }
+  }
+  if (typeof webApp.openLink === 'function') {
+    webApp.openLink(target.href);
+    return true;
+  }
+  return false;
+}
+
 export function syncTelegramEnvironment(webApp = getTelegramWebApp()) {
   if (!webApp) return null;
   webApp.ready?.();
@@ -50,7 +68,20 @@ export function setTelegramBackButton(visible, onBack, webApp = getTelegramWebAp
 
 export function telegramHaptic(type = 'light', webApp = getTelegramWebApp()) {
   const feedback = webApp?.HapticFeedback;
-  if (!feedback) return;
-  if (type === 'success' || type === 'error' || type === 'warning') feedback.notificationOccurred?.(type);
-  else feedback.impactOccurred?.(type);
+  if (!feedback) return false;
+  const [major, minor] = String(webApp?.version || '0.0').split('.').map(Number);
+  if (!Number.isFinite(major) || !Number.isFinite(minor) || major < 6 || (major === 6 && minor < 1)) return false;
+  try {
+    if (type === 'success' || type === 'error' || type === 'warning') {
+      if (typeof feedback.notificationOccurred !== 'function') return false;
+      feedback.notificationOccurred(type);
+    } else {
+      if (typeof feedback.impactOccurred !== 'function') return false;
+      feedback.impactOccurred(type);
+    }
+    return true;
+  } catch {
+    // Haptics are optional and some Telegram WebView versions reject them.
+    return false;
+  }
 }

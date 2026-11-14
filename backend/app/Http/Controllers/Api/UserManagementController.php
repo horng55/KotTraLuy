@@ -194,6 +194,6 @@ class UserManagementController
 
     private function visibleColumns(): array
     {
-        return ['id', 'name', 'username', 'role', 'assigned_shift', 'status', 'must_change_password', 'last_login_at', 'telegram_chat_id', 'telegram_enabled'];
+        return ['id', 'name', 'username', 'role', 'job_role', 'assigned_shift', 'status', 'must_change_password', 'last_login_at', 'telegram_chat_id', 'telegram_enabled'];
     }
 }

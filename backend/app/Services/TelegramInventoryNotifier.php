@@ -38,7 +38,7 @@ class TelegramInventoryNotifier
         if ($token === '') throw new \RuntimeException('Telegram bot is not configured.');
 
         $message = $this->message($payload, $language);
-        $keyboard = $this->keyboard($payload['product_id'] ?? $product?->id, $payload['batch_id'] ?? null);
+        $keyboard = $this->keyboard($payload['product_id'] ?? $product?->id, $payload['batch_id'] ?? null, $language);
         $baseUrl = "https://api.telegram.org/bot{$token}";
         $imageKey = $product?->image_storage_key;
 
@@ -68,7 +68,7 @@ class TelegramInventoryNotifier
         return $this->send($user->telegram_chat_id, $payload, null, $user->preferred_language ?: 'en');
     }
 
-    private function message(array $payload, string $language): string
+    private function legacyMessage(array $payload, string $language): string
     {
         $km = $language === 'km';
         $type = (string) ($payload['type'] ?? 'inventory.low_stock');
@@ -88,13 +88,38 @@ class TelegramInventoryNotifier
         return "<b>{$severity}</b>\n<b>{$name}</b>{$batch}{$expiry}{$labels}";
     }
 
-    private function keyboard(int|string|null $productId, int|string|null $batchId): array
+    private function message(array $payload, string $language): string
+    {
+        $km = $language === 'km';
+        $type = (string) ($payload['type'] ?? 'inventory.low_stock');
+        if ($type === 'test') return $km ? "<b>KotTraLuy</b>\nការជូនដំណឹង Telegram សាកល្បងបានជោគជ័យ។" : "<b>KotTraLuy</b>\nTelegram test notification delivered successfully.";
+        $severity = match ($type) {
+            'inventory.out_of_stock' => $km ? 'អស់ស្តុក' : 'OUT OF STOCK',
+            'inventory.expired' => $km ? 'ផុតកំណត់' : 'EXPIRED',
+            'inventory.expires_today' => $km ? 'ផុតកំណត់ថ្ងៃនេះ' : 'EXPIRES TODAY',
+            'inventory.expiring_soon' => $km ? 'ជិតផុតកំណត់' : 'EXPIRING SOON',
+            default => $km ? 'ស្តុកមានកម្រិតទាប' : 'LOW STOCK',
+        };
+        $name = htmlspecialchars((string) ($payload['product'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $workspace = htmlspecialchars((string) ($payload['workspace'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $quantity = (string) ($payload['quantity'] ?? 0).' '.htmlspecialchars((string) ($payload['unit'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $batchCode = htmlspecialchars((string) ($payload['batch_code'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $expiryDate = htmlspecialchars((string) ($payload['expiry_date'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $batch = $batchCode !== '' ? ($km ? "\nលេខបាច់: {$batchCode}" : "\nBatch: {$batchCode}") : '';
+        $expiry = $expiryDate !== '' ? ($km ? "\nថ្ងៃផុតកំណត់: {$expiryDate}" : "\nExpiration: {$expiryDate}") : '';
+        $days = array_key_exists('days_remaining', $payload) && $payload['days_remaining'] !== null
+            ? ($km ? "\nចំនួនថ្ងៃនៅសល់: {$payload['days_remaining']}" : "\nDays remaining: {$payload['days_remaining']}") : '';
+        $labels = $km ? "\nចំនួននៅសល់: {$quantity}\nអាជីវកម្ម: {$workspace}" : "\nRemaining: {$quantity}\nWorkspace: {$workspace}";
+        return "<b>⚠️ KotTraLuy Inventory Alert</b>\n<b>{$severity}</b>\n<b>{$name}</b>{$batch}{$expiry}{$days}{$labels}";
+    }
+
+    private function keyboard(int|string|null $productId, int|string|null $batchId, string $language = 'en'): array
     {
         $url = rtrim((string) config('services.telegram.mini_app_url', config('app.url')), '/');
         $query = http_build_query(array_filter(['inventory_product' => $productId, 'inventory_batch' => $batchId]));
         return [
             'inline_keyboard' => [[
-                ['text' => 'Open KotTraLuy', 'web_app' => ['url' => $url.($query ? '?'.$query : '')]],
+                ['text' => $language === 'km' ? 'បើក KotTraLuy' : 'Open KotTraLuy', 'web_app' => ['url' => $url.($query ? '?'.$query : '')]],
             ]],
         ];
     }
@@ -105,6 +130,9 @@ class TelegramInventoryNotifier
         if ($response->status() === 429 || $retryAfter > 0) {
             throw new TelegramRateLimitException($retryAfter ?: 60);
         }
+        if (in_array($response->status(), [400, 403], true)) {
+            throw new TelegramPermanentFailureException((string) $response->json('description', 'Telegram rejected the chat.'));
+        }
         throw new \RuntimeException('Telegram rejected the notification: '.(string) $response->json('description', 'Unknown error'));
     }
 }
@@ -112,4 +140,8 @@ class TelegramInventoryNotifier
 class TelegramRateLimitException extends \RuntimeException
 {
     public function __construct(public readonly int $retryAfter) { parent::__construct('Telegram rate limit reached.'); }
+}
+
+class TelegramPermanentFailureException extends \RuntimeException
+{
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarCheck2, CheckCircle2, LoaderCircle } from 'lucide-react';
+import { CalendarCheck2, CalendarClock, CalendarX, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { text, messageText } from '../lib/i18n';
 import { AppDialog, FormField, NumberInput, TextInput, PrimaryButton, SecondaryButton, FormError } from './FormUI';
@@ -18,7 +18,7 @@ export default function ExpirationInventory({ language, owner, onFilter, onChang
   const saveSettings = async event => { event.preventDefault(); const value = Number(days); if (!Number.isInteger(value) || value < 1 || value > 365) { setError({ key: 'expiration.invalid_alert_threshold' }); return; } if (value === savedDays || savingSettings) return; setSavingSettings(true); setSaved(false); setError(''); try { await apiFetch('/inventory-expiration/settings', { method: 'PUT', body: JSON.stringify({ days: value }) }); setSavedDays(value); setDays(value); await load(); setSaved(true); window.setTimeout(() => setSaved(false), 3200); } catch (failure) { setError(failure); } finally { setSavingSettings(false); } };
   const batches = data?.batches?.data || [];
   return <>
-    <div className="kt-expiration-metrics">{[['expiration.expiring_soon', 'expiring_soon', 'expiring_ids'], ['expiration.expired_products', 'expired', 'expired_ids']].map(([label, key, ids]) => <button className="kt-stock-metric" key={key} onClick={() => onFilter(key, data?.[ids] || [])}><div><span>{t(label)}</span><strong>{data?.[key] ?? '—'}</strong></div></button>)}</div>
+    <div className="kt-expiration-metrics">{[['expiration.expiring_soon', 'expiring_soon', 'expiring_ids', CalendarClock], ['expiration.expired_products', 'expired', 'expired_ids', CalendarX]].map(([label, key, ids, Icon]) => <button className="kt-stock-metric" key={key} onClick={() => onFilter(key, data?.[ids] || [])}><div><span>{t(label)}</span><strong>{data?.[key] ?? '—'}</strong></div><Icon size={23} /></button>)}</div>
     <section className="kt-stock-card kt-expiration-section">
       <div className="kt-expiration-settings"><div className="kt-expiration-settings-copy"><h2>{t('expiration.settings_title')}</h2><p>{t('expiration.settings_description')}</p></div>{owner && <form className="kt-expiration-settings-form" onSubmit={saveSettings}><label htmlFor="expiration-threshold">{t('expiration.notify_before_days')}</label><input id="expiration-threshold" aria-label={t('expiration.notify_before_days')} className="kt-expiration-threshold" type="number" min="1" max="365" step="1" value={days} onChange={event => { setDays(event.target.value); setSaved(false); }} required /><button className="kt-button kt-primary" type="submit" disabled={savingSettings || Number(days) === savedDays}>{savingSettings && <LoaderCircle size={15} className="kt-spin" />}{savingSettings ? t('common.saving') : t('common.save_changes')}</button></form>}</div>
       {saved && <div className="kt-success kt-toast kt-expiration-success" role="status"><CheckCircle2 size={16} />{t('expiration.settings_saved')}</div>}
