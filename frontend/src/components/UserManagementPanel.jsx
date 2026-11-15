@@ -1,5 +1,5 @@
 import { messageText } from '../lib/i18n';
-import { t as tr } from '../lib/i18n';
+import { t as tr, formatDateTime } from '../lib/i18n';
 import { useEffect, useState } from 'react';
 import { CheckCircle2, KeyRound, Pencil, Plus, Power, Search, ShieldCheck, UserCheck, Users, XCircle } from 'lucide-react';
 import { apiFetch } from '../lib/api';
@@ -18,7 +18,24 @@ export default function UserManagementPanel({ currentUser }) {
   const [status, setStatus] = useState('');
   const [dialog, setDialog] = useState(null);
   const load = async () => { const [data, pending] = await Promise.all([apiFetch('/users'), apiFetch('/invitations')]); setUsers(data); setInvitations(pending); };
-  useEffect(() => { let active = true; Promise.all([apiFetch('/users'), apiFetch('/invitations')]).then(([data, pending]) => { if (active) { setUsers(data); setInvitations(pending); } }).catch(failure => { if (active) setError(failure); }); return () => { active = false; }; }, []);
+  useEffect(() => {
+    let active = true;
+    let loading = false;
+    const refresh = async () => {
+      if (loading || document.visibilityState === 'hidden') return;
+      loading = true;
+      try {
+        const [data, latest] = await Promise.all([apiFetch('/users', { cache: 'no-store' }), apiFetch('/invitations', { cache: 'no-store' })]);
+        if (active) { setUsers(data); setInvitations(latest); }
+      } catch (failure) { if (active) setError(failure); }
+      finally { loading = false; }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 10000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, []);
   const saved = async text => { await load(); setMessage(text); setError(''); };
   const members = users || [];
   const visible = members.filter(user => `${user.name} ${user.username || ''}`.toLowerCase().includes(search.toLowerCase()) && (!role || role === user.role) && (!shift || shift === user.assigned_shift) && (!status || status === user.status));
@@ -32,7 +49,7 @@ export default function UserManagementPanel({ currentUser }) {
       {!visible.length && <div className="st-team-empty"><Users size={24} /><strong>{users == null ? error ? tr("team.team_members_could_not_be_loaded") : tr("team.loading_team_members") : members.length ? tr("team.no_matching_team_members") : tr("team.build_your_team")}</strong><p>{members.length ? tr("common.try_a_different_name_or_adjust_your_filters") : tr("team.create_individual_accounts_to_manage_roles_and_work_shifts")}</p></div>}
       <div className="st-table-footer">{users ? tr("team.member_count",{count:visible.length,total:users.length}) : tr("settings.waiting_for_workspace_data")}<span>{tr("common.administrators_have_owner_permissions")}</span></div>
     </div>
-    <div className="st-invitations"><h3>{tr('team.invitations')}</h3>{invitations.length ? <div className="st-table-scroll"><table><thead><tr><th>{tr('common.name')}</th><th>{tr('team.contact')}</th><th>{tr('team.role')}</th><th>{tr('common.status')}</th><th>{tr('common.actions')}</th></tr></thead><tbody>{invitations.map(inv => <tr key={inv.id}><td>{inv.name || tr('common.not_provided')}</td><td>{inv.email || inv.phone}</td><td>{tr(`team.${inv.role}`)}</td><td><span className={`st-status ${inv.status}`}>{tr(`team.invitation_${inv.status}`)}</span></td><td><button className="st-icon-button" disabled={inv.status !== 'pending'} aria-label={tr('team.revoke_invitation')} title={tr('team.revoke_invitation')} onClick={() => revoke(inv)}><XCircle size={15} /></button></td></tr>)}</tbody></table></div> : <p className="st-muted-copy">{tr('team.no_invitations')}</p>}</div>
+    <div className="st-invitations"><h3>{tr('team.invitations')}</h3>{invitations.length ? <div className="st-table-scroll"><table><thead><tr><th>{tr('common.name')}</th><th>{tr('team.contact')}</th><th>{tr('team.role')}</th><th>{tr('common.status')}</th><th>{tr('common.actions')}</th></tr></thead><tbody>{invitations.map(inv => <tr key={inv.id}><td>{inv.name || tr('common.not_provided')}</td><td>{inv.email || inv.phone}</td><td>{tr(`team.${inv.role}`)}</td><td><span className={`st-status ${inv.status}`}>{tr(`team.invitation_${inv.status}`)}</span>{inv.status === 'accepted' && inv.accepted_at && <small className="st-accepted-date">{tr('team.accepted_on', { date: formatDateTime(inv.accepted_at) })}</small>}</td><td><button className="st-icon-button" disabled={inv.status !== 'pending'} aria-label={tr('team.revoke_invitation')} title={tr('team.revoke_invitation')} onClick={() => revoke(inv)}><XCircle size={15} /></button></td></tr>)}</tbody></table></div> : <p className="st-muted-copy">{tr('team.no_invitations')}</p>}</div>
     {dialog?.mode === 'invite' && <InvitationDialog close={() => setDialog(null)} onSaved={async text => { await load(); setMessage(text); setError(''); }} />}
     {dialog && dialog.mode !== 'invite' && <TeamMemberDialog key={`${dialog.mode}-${dialog.user?.id || 'new'}`} {...dialog} currentUser={currentUser} close={() => setDialog(null)} onSaved={saved} />}
   </section>;

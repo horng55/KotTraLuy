@@ -36,6 +36,8 @@ class TelegramLinkController
 
         $user->tokens()->where('name', 'telegram-mini-app')->delete();
         $token = $user->createToken('telegram-mini-app')->plainTextToken;
+        $user->setAttribute('access_role', $user->accessRole());
+        $user->setAttribute('permissions', $user->permissionList());
 
         return response()->json([
             'token' => $token,

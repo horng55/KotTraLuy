@@ -34,8 +34,8 @@ class UserManagementController
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', 'unique:users,username'],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', Rule::in(['owner', 'staff'])],
-            'assigned_shift' => ['nullable', Rule::requiredIf(fn () => $request->input('role') === 'staff'), Rule::in(['A', 'B'])],
+            'role' => ['required', Rule::in(['owner', 'manager', 'staff'])],
+            'assigned_shift' => ['nullable', Rule::requiredIf(fn () => in_array($request->input('role'), ['manager', 'staff'], true)), Rule::in(['A', 'B'])],
             'telegram_enabled' => ['sometimes', 'boolean'],
         ]);
 
@@ -46,11 +46,12 @@ class UserManagementController
             'email' => $this->managedEmail($data['username']),
             'password' => $data['password'],
             'role' => $data['role'],
-            'assigned_shift' => $data['role'] === 'staff' ? $data['assigned_shift'] : null,
+            'job_role' => $data['role'] === 'manager' ? 'manager' : null,
+            'assigned_shift' => in_array($data['role'], ['manager', 'staff'], true) ? $data['assigned_shift'] : null,
             'status' => 'active',
             'must_change_password' => true,
             'created_by' => $request->user()->id,
-            'telegram_enabled' => $data['role'] === 'staff' && ($data['telegram_enabled'] ?? false),
+            'telegram_enabled' => in_array($data['role'], ['manager', 'staff'], true) && ($data['telegram_enabled'] ?? false),
         ]);
 
         return response()->json(['data' => $user->only($this->visibleColumns())], 201);
@@ -69,14 +70,14 @@ class UserManagementController
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'username' => ['sometimes', 'required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($user->id)],
-            'role' => ['sometimes', Rule::in(['owner', 'staff'])],
+            'role' => ['sometimes', Rule::in(['owner', 'manager', 'staff'])],
             'assigned_shift' => ['nullable', Rule::in(['A', 'B'])],
             'telegram_enabled' => ['sometimes', 'boolean'],
         ]);
 
         $newRole = $data['role'] ?? $user->role;
-        if ($newRole === 'staff' && empty($data['assigned_shift'] ?? $user->assigned_shift)) {
-            return response()->json(['message' => 'Staff must be assigned to Shift A or Shift B.'], 422);
+        if (in_array($newRole, ['manager', 'staff'], true) && empty($data['assigned_shift'] ?? $user->assigned_shift)) {
+            return response()->json(['message' => 'Managers and staff must be assigned to Shift A or Shift B.'], 422);
         }
 
         if ($user->id === $request->user()->id && $newRole !== 'owner') {
@@ -86,8 +87,9 @@ class UserManagementController
         if (isset($data['username'])) {
             $data['username'] = strtolower($data['username']);
         }
-        $data['assigned_shift'] = $newRole === 'staff' ? ($data['assigned_shift'] ?? $user->assigned_shift) : null;
-        $data['telegram_enabled'] = $newRole === 'staff'
+        $data['assigned_shift'] = in_array($newRole, ['manager', 'staff'], true) ? ($data['assigned_shift'] ?? $user->assigned_shift) : null;
+        $data['job_role'] = $newRole === 'manager' ? 'manager' : null;
+        $data['telegram_enabled'] = in_array($newRole, ['manager', 'staff'], true)
             ? ($data['telegram_enabled'] ?? (bool) $user->telegram_enabled)
             : false;
 

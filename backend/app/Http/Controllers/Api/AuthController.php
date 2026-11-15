@@ -41,6 +41,8 @@ class AuthController
 
         $token = $user->createToken('biztrack')->plainTextToken;
 
+        $user->setAttribute('access_role', $user->accessRole());
+        $user->setAttribute('permissions', $user->permissionList());
         return response()->json([
             'user' => $user->load('business'),
             'token' => $token,
@@ -76,6 +78,8 @@ class AuthController
 
         $token = $user->createToken('biztrack')->plainTextToken;
 
+        $user->setAttribute('access_role', $user->accessRole());
+        $user->setAttribute('permissions', $user->permissionList());
         return response()->json([
             'user' => $user->load('business'),
             'token' => $token,
@@ -84,7 +88,10 @@ class AuthController
 
     public function user(Request $request)
     {
-        return $request->user()->load('business');
+        $user = $request->user()->load('business');
+        $user->setAttribute('access_role', $user->accessRole());
+        $user->setAttribute('permissions', $user->permissionList());
+        return $user;
     }
 
     public function logout(Request $request)

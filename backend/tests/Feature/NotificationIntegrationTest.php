@@ -8,11 +8,30 @@ use App\Models\User;
 use App\Models\WorkspaceNotification;
 use App\Services\InventoryAlertService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class NotificationIntegrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_count_and_list_share_the_same_eight_record_inbox_and_read_mutations(): void
+    {
+        $business = Business::factory()->create();
+        $owner = User::withoutEvents(fn () => User::factory()->create(['business_id' => $business->id, 'role' => 'owner', 'status' => 'active']));
+        for ($i = 1; $i <= 8; $i++) {
+            WorkspaceNotification::create(['id' => (string) Str::uuid(), 'type' => 'business.incomplete', 'business_id' => $business->id,
+                'notifiable_type' => $owner->getMorphClass(), 'notifiable_id' => $owner->id, 'event_key' => 'demo:'.$i,
+                'owner_only' => false, 'data' => ['params' => ['missing_fields' => ['name']]]]);
+        }
+        $this->actingAs($owner, 'sanctum');
+        $this->getJson('/api/notifications/unread-count')->assertOk()->assertJsonPath('unread_count', 8);
+        $this->getJson('/api/notifications?unread=1&per_page=8')->assertOk()->assertJsonPath('total', 8)->assertJsonCount(8, 'data')->assertJsonPath('unread_count', 8);
+        $id = WorkspaceNotification::firstOrFail()->id;
+        $this->patchJson('/api/notifications/'.$id.'/read')->assertOk()->assertJsonPath('unread_count', 7);
+        $this->postJson('/api/notifications/read-all')->assertOk()->assertJsonPath('unread_count', 0);
+        $this->getJson('/api/notifications/unread-count')->assertOk()->assertJsonPath('unread_count', 0);
+    }
 
     public function test_sale_currency_defaults_are_taken_from_the_saved_record(): void
     {
@@ -60,6 +79,7 @@ class NotificationIntegrationTest extends TestCase
         $owner = User::factory()->create(['business_id' => $business->id]);
         $staff = User::factory()->create(['business_id' => $business->id, 'role' => 'staff']);
         $peer = User::factory()->create(['business_id' => $business->id, 'role' => 'staff']);
+        \App\Models\Shift::create(['business_id' => $business->id, 'user_id' => $staff->id, 'shift_type' => 'A', 'status' => 'open', 'started_at' => now(), 'opening_cash' => 0]);
         $product = Product::factory()->create(['business_id' => $business->id, 'stock_quantity' => 10, 'minimum_stock' => 5]);
         $this->actingAs($staff, 'sanctum');
         $payload = ['sold_at' => now()->toDateTimeString(), 'currency' => 'USD', 'idempotency_key' => 'notification-sale', 'payment_received' => 0, 'items' => [['product_id' => $product->id, 'quantity' => 7, 'unit_price' => 5]]];
@@ -150,7 +170,7 @@ class NotificationIntegrationTest extends TestCase
         $owner = User::factory()->create(['business_id' => $business->id]);
         $staff = User::factory()->create(['business_id' => $business->id, 'role' => 'staff']);
         $sale = \App\Models\Sale::create(['business_id' => $business->id, 'user_id' => $staff->id, 'currency' => 'USD', 'sale_no' => 'NOTIFY-1', 'sold_at' => now(), 'total_amount' => 35, 'payment_received' => 0, 'outstanding_balance' => 35]);
-        $this->actingAs($staff, 'sanctum');
+        $this->actingAs($owner, 'sanctum');
         $this->patchJson('/api/sales/'.$sale->id, ['notes' => 'Customer requested delivery'])->assertOk();
         $this->postJson('/api/sales/'.$sale->id.'/payments', ['amount' => 15, 'idempotency_key' => 'notify-payment'])->assertOk();
         $this->postJson('/api/sales/'.$sale->id.'/payments', ['amount' => 15, 'idempotency_key' => 'notify-payment'])->assertOk()->assertJsonPath('duplicate', true);

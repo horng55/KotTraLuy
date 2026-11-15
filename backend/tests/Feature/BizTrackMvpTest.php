@@ -48,7 +48,7 @@ class BizTrackMvpTest extends TestCase
         $business = Business::factory()->create();
         $user = User::factory()->create([
             'business_id' => $business->id,
-            'role' => 'staff',
+            'role' => 'manager',
         ]);
 
         $product = Product::factory()->create([
@@ -105,7 +105,7 @@ class BizTrackMvpTest extends TestCase
         $business = Business::factory()->create();
         $user = User::factory()->create([
             'business_id' => $business->id,
-            'role' => 'staff',
+            'role' => 'manager',
         ]);
 
         $product = Product::factory()->create([

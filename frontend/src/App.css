@@ -99,6 +99,7 @@ body { background: var(--warm-ivory); color: var(--ink); }
 .home-actions-column > .quick-actions-panel .modal-backdrop { visibility: visible; }
 .welcome-panel { position: relative; display: flex; justify-content: space-between; gap: 12px; overflow: hidden; min-height: 184px; padding: 20px; border-radius: 16px; background: linear-gradient(135deg, var(--surface-accent) 0%, var(--surface-accent) 100%); border: 1px solid var(--border-accent); }
 .welcome-panel h2 { margin: 8px 0 5px; color: var(--forest); font-size: 19px; line-height: 1.2; }
+.dashboard-greeting { overflow-wrap: anywhere; }
 .welcome-panel p { max-width: 250px; margin: 0 0 12px; color: var(--text-secondary); font-size: 13px; line-height: 1.35; }
 .welcome-kicker { display: inline-flex; align-items: center; gap: 6px; color: var(--forest); font-size: 12px; font-weight: 700; line-height: 1.35; }
 .welcome-illustration { position: relative; align-self: end; width: 150px; height: 126px; color: var(--forest); }

@@ -12,12 +12,14 @@ class NotificationController
     private function inbox(Request $request)
     {
         $user = $request->user();
-        app(\App\Services\InventoryAlertService::class)->refresh($user->business);
         abort_unless($user->business_id && $user->status === 'active', 403);
+        $business = $user->business;
+        abort_unless($business, 403);
+        app(\App\Services\InventoryAlertService::class)->refresh($business);
         return WorkspaceNotification::where('business_id', $user->business_id)
             ->where('notifiable_type', $user->getMorphClass())
             ->where('notifiable_id', $user->id)
-            ->when($user->role !== 'owner', fn ($query) => $query->where('owner_only', false));
+            ->when($user->accessRole() === 'staff', fn ($query) => $query->where('owner_only', false));
     }
 
     public function index(Request $request)
@@ -51,12 +53,14 @@ class NotificationController
                 'created_at' => $notification->created_at->toIso8601String(),
             ];
         }));
-        return response()->json([...$page->toArray(), 'unread_count' => $unread]);
+        return response()->json([...$page->toArray(), 'unread_count' => $unread])
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function count(Request $request)
     {
-        return response()->json(['unread_count' => $this->inbox($request)->whereNull('read_at')->count()]);
+        return response()->json(['unread_count' => $this->inbox($request)->whereNull('read_at')->count()])
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function read(Request $request, string $notification)

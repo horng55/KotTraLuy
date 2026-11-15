@@ -61,8 +61,12 @@ class SaleController
 
     public function index(Request $request)
     {
+        $query = Sale::where('business_id', $request->user()->business_id);
+        if (!$request->user()->canDo('sales.read.all')) {
+            $query->where('user_id', $request->user()->id);
+        }
         return response()->json(
-            Sale::where('business_id', $request->user()->business_id)
+            $query
                 ->with(['items.product', 'payments'])
                 ->orderByDesc('sold_at')
                 ->get()
@@ -236,16 +240,23 @@ class SaleController
 
         if ($requestedShiftId !== null) {
             $shift = $query->whereKey($requestedShiftId)->firstOrFail();
-            if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+            if (!$request->user()->canDo('sales.read.all') && (int) $shift->user_id !== (int) $request->user()->id) {
                 abort(403, 'You do not have access to this shift.');
+            }
+            if ($request->user()->accessRole() === 'staff' && $shift->status !== 'open') {
+                abort(403, 'Open your assigned shift before recording a sale.');
             }
 
             return $shift->id;
         }
 
-        return (clone $query)
+        $shiftId = (clone $query)
             ->where('user_id', $request->user()->id)
             ->where('status', 'open')
             ->value('id');
+        if ($request->user()->accessRole() === 'staff' && !$shiftId) {
+            abort(403, 'Open your assigned shift before recording a sale.');
+        }
+        return $shiftId;
     }
 }

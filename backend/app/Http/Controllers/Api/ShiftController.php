@@ -11,7 +11,7 @@ class ShiftController
     public function index(Request $request)
     {
         $query = Shift::where('business_id', $request->user()->business_id);
-        if ($request->user()->role !== 'owner') {
+        if (!$request->user()->canDo('shifts.manage')) {
             $query->where('user_id', $request->user()->id);
         }
 
@@ -64,7 +64,7 @@ class ShiftController
         if ((int) $shift->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
-        if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+        if (!$request->user()->canDo('shifts.manage') && (int) $shift->user_id !== (int) $request->user()->id) {
             return response()->json(['message' => 'You do not have access to this shift.'], 403);
         }
 
@@ -76,7 +76,7 @@ class ShiftController
         if ((int) $shift->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
-        if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+        if (!$request->user()->canDo('shifts.manage') && (int) $shift->user_id !== (int) $request->user()->id) {
             return response()->json(['message' => 'You do not have access to this shift.'], 403);
         }
 
@@ -95,7 +95,7 @@ class ShiftController
         if ((int) $shift->business_id !== (int) $request->user()->business_id) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
-        if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+        if (!$request->user()->canDo('shifts.manage') && (int) $shift->user_id !== (int) $request->user()->id) {
             return response()->json(['message' => 'You do not have access to this shift.'], 403);
         }
 
@@ -110,7 +110,7 @@ class ShiftController
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
 
-        if ($shift->user_id !== $request->user()->id && $request->user()->role !== 'owner') {
+        if ($shift->user_id !== $request->user()->id && !$request->user()->canDo('shifts.manage')) {
             return response()->json(['message' => 'Only the shift owner or owner may close this shift.'], 403);
         }
 

@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Sale;
 use App\Models\WasteRecord;
+use App\Models\InventoryAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +15,7 @@ class DashboardController
 {
     public function index(Request $request)
     {
-        if ($request->user()->role !== 'owner') {
+        if (!$request->user()->canDo('dashboard.operational')) {
             return response()->json(['message' => 'Owner access only.'], 403);
         }
 
@@ -89,6 +90,30 @@ class DashboardController
             'number_of_sales' => $salesCount,
             'recent_records' => $recentRecords,
             'trend' => $trend,
+        ]);
+    }
+
+    public function personal(Request $request)
+    {
+        $user = $request->user();
+        $business = $user->business;
+        $today = now($business->timezone ?: 'Asia/Phnom_Penh')->toDateString();
+        $sales = Sale::where('business_id', $business->id)->where('user_id', $user->id)
+            ->whereDate('sold_at', $today)->latest('sold_at')->get();
+        $alerts = InventoryAlert::where('business_id', $business->id)->whereNull('resolved_at')
+            ->with('product:id,name,unit,image_storage_key')->latest()->limit(5)->get();
+        $shift = \App\Models\Shift::where('business_id', $business->id)->where('user_id', $user->id)
+            ->where('status', 'open')->latest('started_at')->first();
+
+        return response()->json([
+            'business' => $business,
+            'access_role' => $user->accessRole(),
+            'assigned_shift' => $user->assigned_shift,
+            'open_shift' => $shift,
+            'today_sales_count' => $sales->count(),
+            'today_sales_total' => round((float) $sales->sum('total_amount'), 2),
+            'recent_sales' => $sales->take(8)->values(),
+            'alerts' => $alerts,
         ]);
     }
 }

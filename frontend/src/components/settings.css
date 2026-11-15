@@ -64,6 +64,11 @@
 .st-role, .st-status { display: inline-block; white-space: nowrap; border-radius: 5px; padding: 4px 6px; font-size: 9px; background: var(--surface-subtle); color: var(--text-secondary); }
 .st-role.owner, .st-status.active { color: var(--accent-foreground); background: var(--surface-subtle); }
 .st-status { text-transform: capitalize; }
+.st-status.pending { color: #b7791f; background: #fef3c7; }
+.st-status.accepted { color: #166534; background: #dcfce7; }
+.st-status.expired, .st-status.declined { color: #4b5563; background: #e5e7eb; }
+.st-status.revoked { color: #b91c1c; background: #fee2e2; }
+.st-accepted-date { display: block; margin-top: 5px; color: var(--text-secondary); font-size: 11px; }
 .st-status.inactive { color: var(--danger-foreground); background: var(--surface-subtle); }
 .st-enabled { color: var(--accent-foreground); font-size: 10px; }
 .st-muted { color: var(--st-muted); font-size: 10px; }
@@ -81,6 +86,7 @@
 .st-muted-copy { color: var(--st-muted); padding: 0 16px 16px; font-size: 11px; }
 .st-copy-link { display: flex; gap: 8px; align-items: center; }
 .st-copy-link input { flex: 1; min-width: 0; }
+.st-copy-link .st-button { flex: 0 0 auto; white-space: nowrap; touch-action: manipulation; }
 .st-invite-result { border: 1px solid var(--st-border); border-radius: 9px; padding: 12px; }
 .st-invite-result p { color: var(--st-muted); font-size: 11px; line-height: 1.5; }
 .st-error { padding: 12px; background: var(--surface-subtle); color: var(--danger-foreground); font-size: 12px; border-radius: 8px; line-height: 1.6; }
@@ -102,6 +108,8 @@
 @media (max-width: 900px) { .st-layout { grid-template-columns: minmax(0, 1fr); } .st-local-nav { position: static; display: flex; overflow-x: auto; padding-bottom: 6px; } .st-nav-label, .st-nav-note { display: none; } .st-local-nav > button { white-space: nowrap; } .st-link-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) {
   .page:has(.settings-workspace) { padding: 20px 14px 84px; }
+  .st-copy-link { align-items: stretch; flex-direction: column; }
+  .st-copy-link .st-button { justify-content: center; min-height: 40px; }
   .st-heading { align-items: flex-start; flex-direction: column; gap: 14px; padding-bottom: 20px; }
   .st-heading h1 { font-size: 28px; }
   .st-layout { padding-top: 16px; gap: 16px; }

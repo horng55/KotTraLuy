@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class TelegramInventoryNotificationTest extends TestCase
@@ -78,5 +79,25 @@ class TelegramInventoryNotificationTest extends TestCase
         app(InventoryAlertService::class)->refresh($business->fresh());
         $this->assertSame(1, WorkspaceNotification::where('business_id', $business->id)->where('type', 'inventory.expiring_soon')->count());
         $this->assertSame(1, TelegramNotificationDelivery::where('notification_id', $notification->id)->where('user_id', $owner->id)->count());
+    }
+
+    public function test_delivery_is_skipped_when_workspace_scope_does_not_match(): void
+    {
+        $firstBusiness = Business::factory()->create();
+        $secondBusiness = Business::factory()->create();
+        $user = User::factory()->create(['business_id' => $firstBusiness->id, 'telegram_chat_id' => 7654321, 'telegram_enabled' => true]);
+        $notification = WorkspaceNotification::create([
+            'id' => (string) Str::uuid(), 'type' => 'inventory.low_stock', 'notifiable_type' => $user->getMorphClass(),
+            'notifiable_id' => $user->id, 'business_id' => $secondBusiness->id, 'event_key' => 'test:mismatch',
+            'data' => ['params' => [], 'entity_type' => null, 'entity_id' => null],
+        ]);
+        $delivery = TelegramNotificationDelivery::create([
+            'notification_id' => $notification->id, 'user_id' => $user->id, 'business_id' => $secondBusiness->id, 'status' => 'pending',
+        ]);
+
+        (new SendTelegramInventoryNotification($delivery->id))->handle(app(TelegramInventoryNotifier::class));
+
+        $this->assertSame('skipped', $delivery->fresh()->status);
+        Http::assertNothingSent();
     }
 }

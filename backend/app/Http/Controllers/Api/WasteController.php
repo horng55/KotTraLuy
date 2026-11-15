@@ -66,7 +66,7 @@ class WasteController
 
         if ($requestedShiftId !== null) {
             $shift = $query->whereKey($requestedShiftId)->firstOrFail();
-            if ($request->user()->role !== 'owner' && (int) $shift->user_id !== (int) $request->user()->id) {
+            if (!$request->user()->canDo('shifts.manage') && (int) $shift->user_id !== (int) $request->user()->id) {
                 abort(403, 'You do not have access to this shift.');
             }
 

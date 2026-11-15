@@ -5,6 +5,7 @@ import { ArrowUpRight, BarChart3, CalendarDays, Mic, Package, Plus, ReceiptText,
 import QuickActionsPanel from './QuickActionsPanel';
 import SalesOverview from './SalesOverview';
 import InventoryOverview from './InventoryOverview';
+import { greetingTimeZone, useGreeting } from '../lib/useGreeting';
 
 export default function HomePage({ dashboard, records, business, currentUser, onNavigate, reload, language }) {
   const today = dayKey(new Date());
@@ -22,12 +23,11 @@ export default function HomePage({ dashboard, records, business, currentUser, on
   const money = (value, code = currency) => new Intl.NumberFormat(getLocale(), { style: 'currency', currency: code }).format(Number(value || 0));
   const open = mode => document.querySelector('.bd-modal-source')?.querySelector(mode === 'sale' ? '.primary-action-row .button' : mode === 'voice' ? '.voice-button' : '.secondary-action-row .button:last-child')?.click();
   const recent = [...sales.map(row => ({ ...row, type: 'Sale', date: row.sold_at, amount: row.total_amount, description: row.notes || row.sale_no || tr("stock.product_sale"), reference: row.sale_no || row.id })), ...expenses.map(row => ({ ...row, type: 'Expense', date: row.expense_date, reference: row.id }))].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 6);
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? tr("common.good_morning") : hour < 18 ? tr("common.good_afternoon") : tr("common.good_evening");
+  const greeting = useGreeting(language, greetingTimeZone(currentUser));
   const quick = [[ShoppingCart, tr("sales.create_new_sale"), tr("common.record_a_customer_purchase"), () => open('sale')], [ReceiptText, tr("sales.record_expense"), tr("common.keep_your_costs_organized"), () => open('expense')], [Package, tr("stock.manage_stock"), tr("stock.products_and_stock_movements"), () => onNavigate('inventory')], [BarChart3, tr("reports.view_reports"), tr("common.understand_your_performance"), () => onNavigate('reports')]];
   const steps = [!sales.length && [ShoppingCart, tr("sales.make_your_first_sale"), tr("common.start_a_clear_record_of_your_daily_income"), () => open('sale'), tr("sales.record_first_sale")], !products.length && [Package, tr("stock.build_your_inventory"), tr("stock.add_products_and_keep_stock_in_sight"), () => onNavigate('inventory'), tr("stock.add_stock_item")], !expenses.length && [ReceiptText, tr("common.keep_costs_in_sight"), tr("common.see_where_your_business_money_goes"), () => open('expense'), tr("sales.record_expense_2")]].filter(Boolean);
   return <div className="business-dashboard">
-    <header className="bd-heading"><div><span className="bd-kicker">{tr("common.business_at_a_glance")}</span><h1>{greeting}, {currentUser?.name?.split(' ')[0] || ''}</h1><p>{tr("common.here_s_what_s_happening_with_your_business_today")}</p></div><label className="bd-date"><CalendarDays size={16} /><input aria-label={tr("common.dashboard_date")} type="date" max={today} value={date} onChange={event => event.target.value && setDate(event.target.value)} /></label></header>
+    <header className="bd-heading"><div><span className="bd-kicker">{tr("common.business_at_a_glance")}</span><h1 className="dashboard-greeting">{greeting}, {currentUser?.name || currentUser?.username || ''}!</h1><p>{tr("common.here_s_what_s_happening_with_your_business_today")}</p></div><label className="bd-date"><CalendarDays size={16} /><input aria-label={tr("common.dashboard_date")} type="date" max={today} value={date} onChange={event => event.target.value && setDate(event.target.value)} /></label></header>
     <div className="bd-actionbar"><div className="bd-period"><i />{date === today ? tr("common.today_s_overview") : tr("common.daily_overview")}<span>{currency}</span></div><div className="bd-actions"><div className="bd-secondary-actions"><button onClick={() => open('expense')}><ReceiptText size={16} />{tr("sales.record_expense")}</button><button onClick={() => open('voice')}><Mic size={16} />{tr("common.voice_input")}</button></div><button className="bd-primary" onClick={() => open('sale')}><Plus size={17} />{tr("sales.new_sale")}</button></div></div>
     <div className="bd-grid">
       <Kpi label={tr("sales.total_sales")} value={money(revenue)} icon={ShoppingCart} note={tr("sales.sales_on_selected_day")} current={revenue} previous={previousTotal(sales, 'sold_at', 'total_amount')} />

@@ -24,7 +24,7 @@ class ProductController
 
     public function store(Request $request, ProductImageService $images)
     {
-        if ($request->user()->role !== 'owner') {
+        if (!$request->user()->canDo('inventory.manage')) {
             return response()->json(['message' => 'Owner access only.'], 403);
         }
 
@@ -114,7 +114,7 @@ class ProductController
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
 
-        if ($request->user()->role !== 'owner') {
+        if (!$request->user()->canDo('inventory.manage')) {
             return response()->json(['message' => 'Owner access only.'], 403);
         }
 
@@ -172,7 +172,7 @@ class ProductController
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
 
-        if ($request->user()->role !== 'owner') {
+        if (!$request->user()->canDo('inventory.manage')) {
             return response()->json(['message' => 'Owner access only.'], 403);
         }
 

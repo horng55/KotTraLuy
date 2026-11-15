@@ -33,7 +33,7 @@ class ExpirationController
     }
 
     public function settings(Request $request) {
-        abort_unless($request->user()->role === 'owner',403);
+        abort_unless($request->user()->canDo('inventory.settings'),403);
         $data = $request->validate(['days'=>'required|integer|min:1|max:3650']);
         $request->user()->business->forceFill(['expiry_warning_days'=>$data['days']])->save();
         app(InventoryAlertService::class)->refresh($request->user()->business->fresh());
@@ -41,7 +41,7 @@ class ExpirationController
     }
 
     public function update(Request $request, StockBatch $batch) {
-        abort_unless($request->user()->role === 'owner' && (int)$batch->business_id === (int)$request->user()->business_id,403);
+        abort_unless($request->user()->canDo('inventory.manage') && (int)$batch->business_id === (int)$request->user()->business_id,403);
         $data = $request->validate(['expiry_date'=>'nullable|date_format:Y-m-d','batch_code'=>'required|string|max:100']);
         DB::transaction(function () use ($batch,$data) {
             Business::whereKey($batch->business_id)->lockForUpdate()->firstOrFail();
@@ -54,7 +54,7 @@ class ExpirationController
     }
 
     public function dispose(Request $request, StockBatch $batch) {
-        abort_unless($request->user()->role === 'owner' && (int)$batch->business_id === (int)$request->user()->business_id,403);
+        abort_unless($request->user()->canDo('inventory.dispose') && (int)$batch->business_id === (int)$request->user()->business_id,403);
         $data = $request->validate(['quantity'=>'required|integer|min:1','reason'=>'required|string|max:1000']);
         $record = DB::transaction(function () use ($request,$batch,$data) {
             Business::whereKey($batch->business_id)->lockForUpdate()->firstOrFail();

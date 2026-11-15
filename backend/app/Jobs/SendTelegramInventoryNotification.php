@@ -27,9 +27,12 @@ class SendTelegramInventoryNotification implements ShouldQueue
     {
         $delivery = TelegramNotificationDelivery::with(['notification', 'user.business'])->find($this->deliveryId);
         if (!$delivery || $delivery->status === 'sent') return;
+        if ($delivery->status === 'pending' && $delivery->next_attempt_at && $delivery->next_attempt_at->isFuture()) {
+            return;
+        }
         $user = $delivery->user;
         $notification = $delivery->notification;
-        if (!$user || !$notification || !$user->telegram_chat_id || $user->status !== 'active' || ($user->role === 'staff' && !$user->telegram_enabled)) {
+        if (!$user || !$notification || (int) $delivery->business_id !== (int) $user->business_id || (int) $notification->business_id !== (int) $delivery->business_id || !$user->telegram_chat_id || $user->status !== 'active' || ($user->role === 'staff' && !$user->telegram_enabled)) {
             $delivery->update(['status' => 'skipped', 'last_error' => 'Recipient is no longer authorized or connected.']);
             return;
         }

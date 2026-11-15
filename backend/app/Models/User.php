@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\RolePermissions;
+
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -54,5 +56,20 @@ class User extends Authenticatable
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function accessRole(): string
+    {
+        return RolePermissions::role($this);
+    }
+
+    public function canDo(string $permission): bool
+    {
+        return RolePermissions::allows($this, $permission);
+    }
+
+    public function permissionList(): array
+    {
+        return RolePermissions::for($this);
     }
 }

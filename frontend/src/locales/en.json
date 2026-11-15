@@ -340,9 +340,11 @@
   "common.generated": "Generated",
   "reports.generating_report": "Generating report...",
   "team.give_every_team_member_their_own_secure_workspace_account": "Give every team member their own secure workspace account.",
-  "common.good_afternoon": "Good afternoon",
-  "common.good_evening": "Good evening",
-  "common.good_morning": "Good morning",
+  "common.good_afternoon": "Good Afternoon",
+  "common.good_evening": "Good Evening",
+  "common.good_morning": "Good Morning",
+  "common.good_night": "Good Night",
+  "common.welcome": "Welcome",
   "reports.gross_profit": "Gross profit",
   "common.here_s_what_s_happening_with_your_business_today": "Here's what's happening with your business today.",
   "common.home": "Home",
@@ -514,7 +516,7 @@
   "common.expand_sidebar": "Expand sidebar",
   "settings.open_supporting_tools_and_settings_from_one_place": "Open supporting tools and settings from one place.",
   "telegram.open_the_bot": "Open the Bot",
-  "telegram.open_the_kottraluy_bot_in_telegram_and_complete_its_confirmation_command": "Open the KotTraLuy bot in Telegram and complete its confirmation command.",
+  "telegram.open_the_kottraluy_bot_in_telegram_and_complete_its_confirmation_command": "Open the KotTraLuy bot in Telegram and tap Start to connect securely.",
   "sales.opening_balances_loans_owner_transactions_equipment_and_bank_transfers_are_not_recorded_a_complete_b": "Opening balances, loans, owner transactions, equipment and bank transfers are not recorded; a complete balance sheet cannot be produced.",
   "stock.opening_stock": "Opening stock",
   "settings.opening_legacy_unit_costs_use_the_workspace_cost_currency_purchases_use_their_recorded_currency_cost": "Opening/legacy unit costs use the workspace cost currency; purchases use their recorded currency. Costs are never converted.",
@@ -987,7 +989,7 @@
   "financing.pack_number": "Preparation Pack #{id}",
   "financing.snapshot_count": "{count} dated snapshots · JSON downloads",
   "financing.amount_filter_note": "Only products with a published {currency} range covering this amount are shown. Products with unpublished limits are excluded.",
-  "telegram.link_instruction": "Open the bot, tap Start, then send the confirmation command the bot provides. This connection link expires at {time}.",
+  "telegram.link_instruction": "Open the bot and tap Start to connect securely. This connection link expires at {time}.",
   "common.retail_example": "e.g. Retail grocery shop",
   "common.workspace_currency": "workspace currency",
   "common.sales_through_cutoff": "Sales through cutoff",
@@ -1192,5 +1194,29 @@
   "common.done": "Done"
   ,"team.accept_invitation": "Accept invitation"
   ,"team.accept_invitation_description": "Join this workspace as a {role}. Create your own password to finish setup. Telegram is connected separately after you sign in.",
-  "auth.confirm_password": "Confirm password"
+  "auth.confirm_password": "Confirm password",
+  "team.invitation_declined": "Declined",
+  "team.accepted_on": "Accepted on {date}",
+  "team.copied": "Copied!",
+  "team.invitation_link_copied": "Invitation link copied.",
+  "team.copy_link_failed": "Copying failed. Select the invitation link and copy it manually.",
+  "team.share_via_telegram": "Share via Telegram",
+  "team.telegram_share_failed": "Telegram sharing is unavailable. Copy the link manually.",
+  "team.join_workspace": "Join your workspace",
+  "team.invitation_subtitle": "You've been invited to join a business on KotTraLuy.",
+  "team.workspace": "Workspace",
+  "team.invitation_loading": "Checking this invitation…",
+  "team.invitation_unavailable": "Invitation unavailable",
+  "team.invitation_unavailable_description": "This invitation is no longer available. Ask the workspace owner for a new invitation.",
+  "team.password_guidance": "Use at least 8 characters with a mix you can remember.",
+  "team.show_password": "Show password",
+  "team.hide_password": "Hide password",
+  "team.existing_account_prompt": "Already have a KotTraLuy account? Sign in to accept",
+  "team.use_new_account": "Use a new account instead",
+  "team.sign_in_to_accept": "Sign in to accept",
+  "team.signed_in_accepting": "Signed in. Confirming your workspace access…"
+  ,"common.welcome_back": "Welcome back"
+  ,"sales.recorded_today": "Recorded today"
+  ,"common.total": "Total"
+  ,"sales.your_sales_today": "Your sales today"
 }

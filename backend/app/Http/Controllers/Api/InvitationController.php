@@ -17,7 +17,8 @@ class InvitationController
     public function index(Request $request)
     {
         if ($response = $this->ownerOnly($request)) return $response;
-        return WorkspaceInvitation::where('business_id', $request->user()->business_id)->latest()->get();
+        return response()->json(WorkspaceInvitation::where('business_id', $request->user()->business_id)->latest()->get())
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function store(Request $request, InvitationDeliveryService $delivery)
@@ -57,24 +58,55 @@ class InvitationController
 
     public function show(string $token)
     {
-        $invitation = $this->findUsable($token);
-        if (!$invitation) return response()->json(['message' => 'This invitation is invalid, expired, or revoked.'], 404);
-        return response()->json(['name' => $invitation->name, 'role' => $invitation->role, 'channel' => $invitation->channel, 'expires_at' => $invitation->expires_at]);
+        $invitation = WorkspaceInvitation::with('business')->where('token_hash', hash('sha256', $token))->first();
+        if (!$invitation) return response()->json(['message' => 'This invitation is invalid.'], 404);
+        return response()->json([
+            'name' => $invitation->name, 'role' => $invitation->role, 'channel' => $invitation->channel,
+            'expires_at' => $invitation->expires_at, 'accepted_at' => $invitation->accepted_at,
+            'status' => $invitation->status, 'workspace' => ['id' => $invitation->business_id, 'name' => $invitation->business?->name],
+        ]);
+    }
+
+    public function acceptExisting(Request $request, string $token)
+    {
+        $result = DB::transaction(function () use ($request, $token) {
+            $invitation = WorkspaceInvitation::where('token_hash', hash('sha256', $token))->lockForUpdate()->first();
+            $user = $request->user();
+            abort_if(!$invitation || $invitation->status !== 'pending', 422, 'This invitation is no longer available.');
+            abort_unless($user->status === 'active' && (int) $user->business_id === (int) $invitation->business_id, 403, 'This account cannot join the invited workspace.');
+            $matches = ($invitation->email && strcasecmp((string) $user->email, (string) $invitation->email) === 0)
+                || ($invitation->phone && (string) $user->phone === (string) $invitation->phone);
+            abort_unless($matches, 403, 'Sign in with the invited account to continue.');
+            DB::table('business_user')->insertOrIgnore(['business_id' => $invitation->business_id, 'user_id' => $user->id, 'role' => 'staff', 'created_at' => now(), 'updated_at' => now()]);
+            if ($user->role === 'staff') $user->forceFill(['job_role' => $invitation->role])->save();
+            $invitation->forceFill(['accepted_user_id' => $user->id, 'accepted_at' => now()])->save();
+            return ['user' => $user->load('business'), 'token' => $user->createToken('invitation-accept')->plainTextToken];
+        });
+        return response()->json($result);
     }
 
     public function accept(Request $request, string $token)
     {
-        $invitation = $this->findUsable($token);
-        if (!$invitation) return response()->json(['message' => 'This invitation is invalid, expired, or revoked.'], 404);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'preferred_language' => ['nullable', Rule::in(['en', 'km'])],
         ]);
-        if ($invitation->email && User::where('email', $invitation->email)->exists()) return response()->json(['message' => 'An account already exists for this email address.'], 422);
-        if ($invitation->phone && User::where('phone', $invitation->phone)->exists()) return response()->json(['message' => 'An account already exists for this phone number.'], 422);
-
-        $user = DB::transaction(function () use ($invitation, $data) {
+        $result = DB::transaction(function () use ($token, $data) {
+            $invitation = WorkspaceInvitation::where('token_hash', hash('sha256', $token))->lockForUpdate()->first();
+            abort_if(!$invitation || $invitation->revoked_at, 404, 'This invitation is invalid, expired, or revoked.');
+            if ($invitation->accepted_at) {
+                $user = $invitation->acceptedUser;
+                // A consumed token alone must never issue a new session.
+                abort_unless($user && $user->status === 'active'
+                    && (int) $user->business_id === (int) $invitation->business_id
+                    && Hash::check($data['password'], $user->password), 403, 'Sign in to the accepting account.');
+                return ['user' => $user->load('business'), 'token' => $user->createToken('invitation-accept')->plainTextToken];
+            }
+            abort_if($invitation->expires_at->isPast(), 404, 'This invitation is invalid, expired, or revoked.');
+            abort_unless(in_array($invitation->role, ['manager', 'cashier', 'staff'], true), 422, 'Invalid invitation role.');
+            abort_if($invitation->email && User::where('email', $invitation->email)->exists(), 422, 'An account already exists for this email address.');
+            abort_if($invitation->phone && User::where('phone', $invitation->phone)->exists(), 422, 'An account already exists for this phone number.');
             $username = 'member_' . $invitation->id . '_' . Str::lower(Str::random(5));
             $email = $invitation->email ?: 'phone.' . hash('sha256', $invitation->phone) . '@managed.kottraluy.local';
             $user = User::create([
@@ -83,17 +115,21 @@ class InvitationController
                 'role' => 'staff', 'job_role' => $invitation->role, 'assigned_shift' => 'A', 'status' => 'active', 'must_change_password' => false,
                 'created_by' => $invitation->invited_by, 'preferred_language' => $data['preferred_language'] ?? 'en',
             ]);
+            DB::table('business_user')->insertOrIgnore(['business_id' => $invitation->business_id, 'user_id' => $user->id, 'role' => 'staff', 'created_at' => now(), 'updated_at' => now()]);
             $invitation->forceFill(['accepted_user_id' => $user->id, 'accepted_at' => now()])->save();
-            return $user;
+            return ['user' => $user->load('business'), 'token' => $user->createToken('invitation-accept')->plainTextToken];
         });
-        return response()->json(['user' => $user->load('business'), 'token' => $user->createToken('invitation-accept')->plainTextToken]);
+        return response()->json($result);
     }
 
     public function revoke(Request $request, WorkspaceInvitation $invitation)
     {
         if ($response = $this->ownerOnly($request)) return $response;
         if ((int) $invitation->business_id !== (int) $request->user()->business_id) return response()->json(['message' => 'You do not have access to this invitation.'], 403);
-        if (!$invitation->accepted_at) $invitation->forceFill(['revoked_at' => now()])->save();
+        DB::transaction(function () use ($invitation) {
+            $locked = WorkspaceInvitation::whereKey($invitation->id)->lockForUpdate()->firstOrFail();
+            if (!$locked->accepted_at) $locked->forceFill(['revoked_at' => now()])->save();
+        });
         return response()->json(['data' => $invitation->fresh()]);
     }
 

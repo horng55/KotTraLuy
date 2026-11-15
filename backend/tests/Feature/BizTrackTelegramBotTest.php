@@ -173,6 +173,28 @@ class BizTrackTelegramBotTest extends TestCase
         $this->assertNotNull($user->fresh()->telegram_chat_id);
     }
 
+    public function test_telegram_deep_link_completes_account_linking(): void
+    {
+        Config::set('services.telegram.webhook_secret', 'test-secret');
+        Config::set('services.telegram.bot_token', 'test-token');
+        Http::fake();
+
+        $business = Business::factory()->create();
+        $user = User::factory()->create(['business_id' => $business->id, 'role' => 'owner']);
+        $code = $this->actingAs($user, 'sanctum')->postJson('/api/telegram/link-code')->json('code');
+
+        $this->postJson('/api/telegram/webhook', [
+            'update_id' => 123456790,
+            'message' => [
+                'chat' => ['id' => 7654322, 'type' => 'private'],
+                'text' => '/start link_'.$code,
+            ],
+        ], ['X-Telegram-Bot-Api-Secret-Token' => 'test-secret'])->assertOk();
+
+        $this->assertSame(7654322, $user->fresh()->telegram_chat_id);
+        $this->assertNotNull(DB::table('telegram_link_codes')->where('token_hash', hash('sha256', $code))->value('consumed_at'));
+    }
+
     public function test_link_code_requires_authentication_and_expires_after_five_minutes(): void
     {
         $this->postJson('/api/telegram/link-code')->assertUnauthorized();
@@ -303,7 +325,7 @@ class BizTrackTelegramBotTest extends TestCase
         ));
     }
 
-    public function test_start_does_not_consume_a_link_token(): void
+    public function test_start_deep_link_consumes_a_link_token_and_connects_the_account(): void
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
@@ -326,11 +348,11 @@ class BizTrackTelegramBotTest extends TestCase
             'X-Telegram-Bot-Api-Secret-Token' => 'test-secret',
         ])->assertOk();
 
-        $this->assertNull($user->fresh()->telegram_chat_id);
-        $this->assertNull(DB::table('telegram_link_codes')
+        $this->assertSame(81234, $user->fresh()->telegram_chat_id);
+        $this->assertNotNull(DB::table('telegram_link_codes')
             ->where('token_hash', hash('sha256', $code))
             ->value('consumed_at'));
-        Http::assertSent(fn ($request) => $request['text'] === "To finish connecting your KotTraLuy account, send this command:\n/link {$code}");
+        Http::assertSent(fn ($request) => str_contains($request['text'], 'now connected to KotTraLuy'));
     }
 
     public function test_user_can_view_status_and_disconnect_only_their_own_telegram_account(): void

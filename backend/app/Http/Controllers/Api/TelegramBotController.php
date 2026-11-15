@@ -83,7 +83,10 @@ class TelegramBotController
     private function handleMessage(int|string $chatId, string $text, ?string $languageCode = null): string
     {
         if (preg_match('/^\/start(?:@\w+)?\s+link_([A-Za-z0-9]{48})$/', $text, $matches)) {
-            return "To finish connecting your KotTraLuy account, send this command:\n/link {$matches[1]}";
+            // Telegram deep links are the normal linking path. Complete the same
+            // one-time, server-side validation used by /link so users do not need
+            // to copy a token out of the Telegram WebView manually.
+            return $this->linkTelegramAccount($chatId, $matches[1], null);
         }
 
         $user = User::where('telegram_chat_id', $chatId)
