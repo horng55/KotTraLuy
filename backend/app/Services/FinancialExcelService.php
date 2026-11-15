@@ -183,9 +183,9 @@ class FinancialExcelService
             'reportInformation' => $this->km('ព័ត៌មានរបាយការណ៍'), 'businessName' => $this->km('ឈ្មោះអាជីវកម្ម'),
             'reportingPeriod' => $this->km('រយៈពេលរបាយការណ៍'), 'reportingCurrency' => $this->km('រូបិយប័ណ្ណរបាយការណ៍'),
             'generatedOn' => $this->km('បង្កើតនៅ'), 'reportStatus' => $this->km('ស្ថានភាពរបាយការណ៍'),
-            'statementAvailability' => $this->km('ភាពមានរបាយការណ៍'), 'financialStatement' => $this->km('របាយការណ៍ហិរញ្ញវត្ថុ'),
-            'availability' => $this->km('ភាពមាន'), 'notes' => $this->km('កំណត់សម្គាល់'),
-            'profitLoss' => $this->km('ចំណេញ និង ខាត'), 'balanceSheet' => $this->km('តារាងតុល្យការ'),
+            'statementAvailability' => $this->km('ស្ថានភាពទិន្នន័យរបាយការណ៍'), 'financialStatement' => $this->km('របាយការណ៍ហិរញ្ញវត្ថុ'),
+            'availability' => $this->km('ទិន្នន័យ'), 'notes' => $this->km('កំណត់សម្គាល់'),
+            'profitLoss' => $this->km('ចំណេញខាត'), 'balanceSheet' => $this->km('តារាងតុល្យការ'),
             'cashFlow' => $this->km('លំហូរសាច់ប្រាក់'), 'limitations' => $this->km('កំណត់សម្គាល់ទិន្នន័យ'),
             'status' => $this->km('ស្ថានភាព'), 'asOf' => $this->km('គិតត្រឹម'),
             'statementItem' => $this->km('ធាតុរបាយការណ៍'), 'amount' => $this->km('ចំនួនទឹកប្រាក់'), 'statementUnavailable' => $this->km('របាយការណ៍មិនមានទិន្នន័យ'),
@@ -210,14 +210,14 @@ class FinancialExcelService
         if ($language !== 'km') return $english[$code] ?? $code;
         $khmer = [
             'recorded_activity_only' => 'របាយការណ៍បង្ហាញតែសកម្មភាពដែលបានកត់ត្រា។ មិនមានបញ្ជីដាច់ដោយឡែកសម្រាប់ការបង្វិលទំនិញ ឬការសងប្រាក់ទេ។',
-            'unrecorded_accounts' => 'សមតុល្យដើមគ្រា ប្រាក់កម្ចី ប្រតិបត្តិការម្ចាស់ ឧបករណ៍ និងការផ្ទេរធនាគារ មិនត្រូវបានកត់ត្រាទេ ដូច្នេះមិនអាចបង្កើតតារាងតុល្យការពេញលេញបានទេ។',
+            'unrecorded_accounts' => 'សមតុល្យដើមគ្រា ប្រាក់កម្ចី ប្រតិបត្តិការម្ចាស់ បរិក្ខារ និងការផ្ទេរធនាគារ មិនត្រូវបានកត់ត្រាទេ ដូច្នេះមិនអាចបង្កើតតារាងតុល្យការពេញលេញបានទេ។',
             'partial_cash_flow' => 'ប្រាក់ទទួលពីអតិថិជនត្រូវបានកត់ត្រា ប៉ុន្តែស្ថានភាពទូទាត់ចំណាយ និងអ្នកផ្គត់ផ្គង់មិនត្រូវបានកត់ត្រាទេ។',
             'legacy_cost_currency' => 'ថ្លៃដើមចាស់ប្រើរូបិយប័ណ្ណថ្លៃដើមរបស់កន្លែងធ្វើការ។ មិនមានការបម្លែងថ្លៃដើមទេ។',
             'inventory_snapshot' => 'ស្តុកជាទិន្នន័យចំនួនបច្ចុប្បន្ន។ មិនមានតម្លៃស្តុកសម្រាប់កាលបរិច្ឆេទអតីតកាល ឬអនាគតទេ។',
             'separate_currencies' => 'រូបិយប័ណ្ណផ្សេងទៀតត្រូវបានដកចេញ។ មិនមានការប្រើអត្រាប្ដូរប្រាក់ ឬការបម្លែងទេ។',
             'incomplete_costs' => 'ថ្លៃដើមមួយចំនួនមិនមាន ឬប្រើរូបិយប័ណ្ណផ្សេង។ មិនប៉ាន់ស្មានថ្លៃដើមទំនិញលក់ ឬចំណេញទេ។',
             'incomplete_receivables' => 'ប្រវត្តិការទូទាត់មិនពេញលេញ។ មិនអាចកំណត់ប្រាក់ត្រូវទទួលបានត្រឹមត្រូវទេ។',
-            'incomplete_inventory' => 'ចំនួនស្តុកមួយចំនួនមិនមានប្រវត្តិថ្លៃដើមកញ្ចប់ដែលត្រូវគ្នាទេ។ មិនអាចកំណត់តម្លៃស្តុកបានទេ។',
+            'incomplete_inventory' => 'ចំនួនស្តុកមួយចំនួនមិនមានប្រវត្តិថ្លៃដើមតាមបាច់ដែលត្រូវគ្នាទេ។ មិនអាចកំណត់តម្លៃស្តុកបានទេ។',
         ];
         return $khmer[$code] ?? $code;
     }
@@ -438,4 +438,3 @@ class FinancialExcelService
         return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
     }
 }
-

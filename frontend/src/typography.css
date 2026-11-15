@@ -71,3 +71,21 @@ html, body, #root { min-width: 0; }
 :lang(km) :is(.sidebar nav button,.st-local-nav button) svg { flex-shrink: 0; }
 :lang(km) .language-switch > span { height: auto; min-height: 28px; line-height: 1.7; }
 :lang(km) .mobile-header .language-switch { height: auto; min-height: 38px; }
+
+/* Khmer typography fixes ------------------------------------------------
+   1. Letter-spacing pulls Khmer consonants away from their subscripts and
+      vowel signs, so Khmer text must never be tracked (positive or negative).
+   2. Uppercase "eyebrow"/kicker labels are 9–11px for Latin text; at that size
+      Khmer subscripts are unreadable, so give them a 12px floor.
+   3. Large headings use line-heights around 1.1, which clips stacked vowels. */
+:lang(km) * { letter-spacing: 0 !important; }
+:lang(km) :is(.login-eyebrow, .eyebrow, .sales-eyebrow, .bd-kicker, .kt-kicker,
+              .fp-eyebrow, .st-eyebrow, .st-nav-label, .header-popover > small) {
+  font-size: 12px;
+  line-height: 1.7;
+}
+:lang(km) :is(.login-card h1, .sales-heading h1, .bd-heading h1, .fp-header h1,
+              .st-heading h1, .page-heading h1, .st-team-heading h2, .st-modal h2,
+              .ig-connection h2) {
+  line-height: 1.5;
+}

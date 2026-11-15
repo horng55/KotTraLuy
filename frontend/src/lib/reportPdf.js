@@ -52,7 +52,7 @@ export async function createReportPdf(element, section = 'all') {
         const isKhmer = host.lang === 'km';
         context.save(); context.font = `11px ${isKhmer ? '"Noto Sans Khmer", ' : ''}sans-serif`;
         context.fillStyle = '#52635a'; context.textBaseline = 'bottom';
-        context.fillText(isKhmer ? 'KotTraLuy · របាយការណ៍ព្រាង · មិនបានធ្វើសវនកម្ម' : 'KotTraLuy · Management-prepared draft · Not audited', 20, canvas.height - 12);
+        context.fillText(isKhmer ? 'KotTraLuy · របាយការណ៍ព្រាង · មិនទាន់ធ្វើសវនកម្ម' : 'KotTraLuy · Management-prepared draft · Not audited', 20, canvas.height - 12);
         context.restore();
       }
       if (index) pdf.addPage();
