@@ -55,12 +55,21 @@ const money = (value, currency = 'USD') => new Intl.NumberFormat(getLocale(), { 
 const legacyTitles = { overview: "common.home", inventory: "stock.stock", records: "common.records", more: "common.more", alerts: "stock.inventory_alerts", reports: "reports.financial_reports", prepare: "financing.financing_preparation_2", options: "financing.finance_options_3", packs: "financing.preparation_packs_2", documents: "documents.document_checklist_3", business: "common.business_profile_2", telegram: "telegram.telegram_bot_access_2" };
 const titleFor = (key) => ({ overview: "common.dashboard", records: "sales.sales_2", more: "settings.settings_2", notifications: "common.notifications" }[key] || legacyTitles[key] || "common.dashboard");
 
+// Inventory deep link from a Telegram alert: ?inventory_product=ID[&inventory_batch=ID]
+function readInventoryLink() {
+  const params = new URLSearchParams(window.location.search);
+  const productId = Number(params.get('inventory_product'));
+  if (!Number.isInteger(productId) || productId <= 0) return null;
+  const batchId = Number(params.get('inventory_batch'));
+  return { entity_type: 'product', entity_id: productId, ...(Number.isInteger(batchId) && batchId > 0 ? { batch_id: batchId } : {}) };
+}
+
 export default function App() {
   const [token, setToken] = useState(sessionStorage.getItem('biztrack_token') || '');
   const [currentUser, setCurrentUser] = useState(null);
-  const [notificationTarget, setNotificationTarget] = useState(null);
+  const [notificationTarget, setNotificationTarget] = useState(() => readInventoryLink());
   const language = useSyncExternalStore(subscribeLanguage, getLanguage);
-  const [authMode, setAuthMode] = useState('login'); const [authForm, setAuthForm] = useState(authDefaults); const [active, setActive] = useState(() => window.history.state?.kottraluyPage || 'overview'); const [mobileNav, setMobileNav] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); const [authForm, setAuthForm] = useState(authDefaults); const [active, setActive] = useState(() => readInventoryLink() ? 'inventory' : window.history.state?.kottraluyPage || 'overview'); const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => { try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'; } catch { return false; } });
   const [dashboard, setDashboard] = useState(null); const [finance, setFinance] = useState(null); const [products, setProducts] = useState([]); const [packs, setPacks] = useState([]); const [profile, setProfile] = useState(profileDefaults); const [business, setBusiness] = useState({});
   const [financingError, setFinancingError] = useState('');
@@ -163,12 +172,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const productId = Number(params.get('inventory_product'));
-    if (!Number.isInteger(productId) || productId <= 0) return;
-    const batchId = Number(params.get('inventory_batch'));
-    setActive('inventory');
-    setNotificationTarget({ entity_type: 'product', entity_id: productId, ...(Number.isInteger(batchId) && batchId > 0 ? { batch_id: batchId } : {}) });
+    if (!readInventoryLink()) return;
     window.history.replaceState({ kottraluyPage: 'inventory' }, '', `${window.location.pathname}${window.location.hash}`);
   }, []);
   const go = (key, target = null) => {
