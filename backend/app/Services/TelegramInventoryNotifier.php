@@ -49,7 +49,7 @@ class TelegramInventoryNotifier
                     'chat_id' => $chatId, 'caption' => $message, 'parse_mode' => 'HTML', 'reply_markup' => json_encode($keyboard, JSON_THROW_ON_ERROR),
                 ]);
             } finally { if (is_resource($stream)) fclose($stream); }
-            if ($response->successful() && $response->json('ok') === true) return ['message_id' => (string) $response->json('result.message_id')];
+            if ($response->successful() && $response->json('ok') === true) return ['message_id' => (string) $response->json('result.message_id'), 'response' => $response->json()];
             if ($response->status() !== 400) $this->throwTelegramFailure($response);
             Log::notice('Telegram product image send failed; falling back to text.', ['status' => $response->status()]);
         }
@@ -58,7 +58,7 @@ class TelegramInventoryNotifier
             'chat_id' => $chatId, 'text' => $message, 'parse_mode' => 'HTML', 'reply_markup' => $keyboard,
         ]);
         if (!$response->successful() || $response->json('ok') !== true) $this->throwTelegramFailure($response);
-        return ['message_id' => (string) $response->json('result.message_id')];
+        return ['message_id' => (string) $response->json('result.message_id'), 'response' => $response->json()];
     }
 
     public function sendTest(User $user): array

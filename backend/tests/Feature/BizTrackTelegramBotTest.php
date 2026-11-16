@@ -17,6 +17,25 @@ class BizTrackTelegramBotTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_unlinked_start_returns_welcome_and_mini_app_button(): void
+    {
+        Config::set('services.telegram.webhook_secret', 'test-secret');
+        Config::set('services.telegram.bot_token', 'test-token');
+        Config::set('services.telegram.mini_app_url', 'https://kottraluy.tech');
+        Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]])]);
+
+        $this->postJson('/api/telegram/webhook', [
+            'update_id' => 991,
+            'message' => ['chat' => ['id' => 456789, 'type' => 'private'], 'text' => '/start'],
+        ], ['X-Telegram-Bot-Api-Secret-Token' => 'test-secret'])->assertOk();
+
+        Http::assertSent(function ($request) {
+            return str_ends_with($request->url(), '/sendMessage')
+                && str_contains($request['text'], 'Welcome to KotTraLuy!')
+                && ($request['reply_markup']['inline_keyboard'][0][0]['web_app']['url'] ?? null) === 'https://kottraluy.tech';
+        });
+    }
+
     public function test_telegram_sale_command_updates_stock(): void
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');

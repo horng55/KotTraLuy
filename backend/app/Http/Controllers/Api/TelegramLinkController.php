@@ -169,7 +169,7 @@ class TelegramLinkController
 
     private function testAvailable(): bool
     {
-        return in_array(app()->environment(), ['local', 'testing'], true);
+        return filled(config('services.telegram.bot_token'));
     }
 
     private function botUrl(string $code): string

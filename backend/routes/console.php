@@ -66,6 +66,38 @@ Artisan::command('telegram:configure', function () {
     return Command::SUCCESS;
 })->purpose('Configure the Telegram webhook and stable Mini App menu button');
 
+Artisan::command('telegram:diagnose', function () {
+    $token = (string) config('services.telegram.bot_token');
+    if ($token === '') {
+        $this->error('TELEGRAM_BOT_TOKEN is not configured.');
+        return Command::FAILURE;
+    }
+
+    $baseUrl = "https://api.telegram.org/bot{$token}";
+    foreach (['getMe' => [], 'getWebhookInfo' => []] as $method => $payload) {
+        try {
+            $response = Http::timeout(15)->post($baseUrl.'/'.$method, $payload);
+        } catch (\Throwable $exception) {
+            $this->error($method.' failed: Telegram API is unreachable.');
+            return Command::FAILURE;
+        }
+        if (!$response->successful() || $response->json('ok') !== true) {
+            $this->error($method.' failed: '.($response->json('description') ?? 'Telegram rejected the request'));
+            return Command::FAILURE;
+        }
+        $result = $response->json('result', []);
+        if ($method === 'getMe') {
+            $this->info('Bot reachable: @'.($result['username'] ?? 'unknown').' (id '.($result['id'] ?? 'unknown').')');
+        } else {
+            $this->info('Webhook URL configured: '.(($result['url'] ?? '') !== '' ? 'yes' : 'no'));
+            $this->info('Pending updates: '.(int) ($result['pending_update_count'] ?? 0));
+            if (!empty($result['last_error_message'])) $this->warn('Last Telegram webhook error: '.$result['last_error_message']);
+        }
+    }
+
+    return Command::SUCCESS;
+})->purpose('Check Telegram bot credentials and webhook health without exposing the bot token');
+
 Artisan::command('inventory:refresh-alerts', function (InventoryAlertService $alerts) {
     Business::where('status', 'active')->each(fn ($business) => $alerts->refresh($business));
     $this->info('Inventory alerts refreshed.');

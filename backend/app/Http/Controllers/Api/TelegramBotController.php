@@ -65,6 +65,7 @@ class TelegramBotController
             return [
                 'duplicate' => false,
                 'chat_id' => $chatId,
+                'start' => (bool) preg_match('/^\/start(?:@\w+)?(?:\s+.*)?$/i', $text),
                 'reply' => $this->handleMessage($chatId, $text, $message['from']['language_code'] ?? null),
             ];
         });
@@ -74,7 +75,7 @@ class TelegramBotController
         }
 
         if (! empty($result['chat_id']) && ! empty($result['reply'])) {
-            $this->sendMessage($token, $result['chat_id'], $result['reply']);
+            $this->sendMessage($token, $result['chat_id'], $result['reply'], !empty($result['start']));
         }
 
         return response()->json(['ok' => true]);
@@ -100,6 +101,9 @@ class TelegramBotController
         }
 
         if (! $user) {
+            if (in_array(Str::lower($text), ['/start', 'start'], true)) {
+                return $this->startMessage(null);
+            }
             return 'KotTraLuy Telegram is not linked yet. Log in to KotTraLuy, choose Connect Telegram, then send /link <token> to this bot.';
         }
 
@@ -118,7 +122,9 @@ class TelegramBotController
         $trimmed = Str::lower($text);
         $reply = null;
 
-        if (in_array($trimmed, ['help', '/help', '/start', 'menu'], true)) {
+        if (in_array($trimmed, ['/start', 'start'], true)) {
+            $reply = $this->startMessage($user);
+        } elseif (in_array($trimmed, ['help', '/help', 'menu'], true)) {
             $reply = "KotTraLuy commands:\n- sale <product> <qty> <price>\n- purchase <product> <qty> <cost>\n- waste <product> <qty> <reason>\n- start shift\n- close shift\n- today\n- stock\nExample: sale Milk 4 3.5";
         } elseif (preg_match('/^sale\s+(.+?)\s+([1-9]\d*)\s+([0-9]+(?:\.[0-9]+)?)$/i', $text, $matches)) {
             $productName = trim($matches[1]);
@@ -334,13 +340,34 @@ class TelegramBotController
         return 'Your Telegram account is now connected to KotTraLuy. Send /help to see available commands.';
     }
 
-    private function sendMessage(string $token, int|string $chatId, string $reply): void
+    private function startMessage(?User $user): string
+    {
+        if ($user) {
+            return "Welcome back to KotTraLuy! 👋\n\nYour Telegram account is connected to {$user->business?->name}. You can receive authorized inventory alerts here.\n\nSend /help to see available commands.";
+        }
+
+        return "Welcome to KotTraLuy! 👋\n\nManage your sales, inventory, and business operations.\n\nConnect your KotTraLuy account to receive inventory alerts.\n\nLog in to KotTraLuy, choose Connect Telegram, then open this bot link or send /link <token>.";
+    }
+
+    private function sendMessage(string $token, int|string $chatId, string $reply, bool $includeMiniApp = false): void
     {
         try {
-            Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", [
+            $payload = [
                 'chat_id' => $chatId,
                 'text' => $reply,
-            ])->throw();
+            ];
+            if ($includeMiniApp) {
+                $payload['reply_markup'] = [
+                    'inline_keyboard' => [[[
+                        'text' => 'Open KotTraLuy',
+                        'web_app' => ['url' => rtrim((string) config('services.telegram.mini_app_url', config('app.url')), '/')],
+                    ]]],
+                ];
+            }
+            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            if (!$response->successful() || $response->json('ok') !== true) {
+                Log::warning('Telegram bot sendMessage rejected.', ['chat_id' => $chatId, 'status' => $response->status(), 'error_category' => $response->json('error_code')]);
+            }
         } catch (ConnectionException|RequestException $exception) {
             Log::warning('Telegram sendMessage request failed.', [
                 'chat_id' => $chatId,

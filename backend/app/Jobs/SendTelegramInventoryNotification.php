@@ -43,6 +43,7 @@ class SendTelegramInventoryNotification implements ShouldQueue
             return;
         }
         $delivery->increment('attempts');
+        $delivery->forceFill(['last_attempt_at' => now(), 'error_category' => null])->save();
         $delivery->refresh();
         $params = $notification->data['params'] ?? [];
         $product = $notification->data['entity_type'] === 'product' ? \App\Models\Product::where('business_id', $delivery->business_id)->find($notification->data['entity_id'] ?? 0) : null;
@@ -52,15 +53,15 @@ class SendTelegramInventoryNotification implements ShouldQueue
         $params['batch_code'] = $params['batch_code'] ?? $product?->batches()->find($params['batch_id'] ?? 0)?->batch_code;
         try {
             $result = $notifier->send($user->telegram_chat_id, $params, $product, $user->preferred_language ?: 'en');
-            $delivery->update(['status' => 'sent', 'sent_at' => now(), 'telegram_message_id' => $result['message_id'], 'last_error' => null]);
+            $delivery->update(['status' => 'sent', 'sent_at' => now(), 'telegram_message_id' => $result['message_id'], 'last_error' => null, 'error_category' => null, 'telegram_response' => $result['response'] ?? null]);
         } catch (TelegramRateLimitException $failure) {
-            $delivery->update(['status' => 'pending', 'next_attempt_at' => now()->addSeconds($failure->retryAfter), 'last_error' => $failure->getMessage()]);
+            $delivery->update(['status' => 'pending', 'next_attempt_at' => now()->addSeconds($failure->retryAfter), 'last_error' => $failure->getMessage(), 'error_category' => 'rate_limited']);
             $this->release($failure->retryAfter);
         } catch (TelegramPermanentFailureException $failure) {
-            $delivery->update(['status' => 'failed', 'last_error' => $failure->getMessage(), 'next_attempt_at' => null]);
+            $delivery->update(['status' => 'failed', 'last_error' => $failure->getMessage(), 'error_category' => 'telegram_rejected', 'next_attempt_at' => null]);
             Log::notice('Telegram inventory notification permanently rejected.', ['delivery_id' => $delivery->id, 'error' => $failure->getMessage()]);
         } catch (\Throwable $failure) {
-            $delivery->update(['status' => 'pending', 'last_error' => $failure->getMessage(), 'next_attempt_at' => now()->addMinutes(5)]);
+            $delivery->update(['status' => 'pending', 'last_error' => $failure->getMessage(), 'error_category' => 'transient', 'next_attempt_at' => now()->addMinutes(5)]);
             Log::warning('Telegram inventory notification failed.', ['delivery_id' => $delivery->id, 'error' => $failure->getMessage()]);
             throw $failure;
         }
