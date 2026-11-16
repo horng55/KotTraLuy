@@ -53,6 +53,7 @@ const navItemsFor = user => user?.access_role === 'staff' || (user?.role === 'st
   : user?.access_role === 'manager' || user?.job_role === 'manager'
     ? ownerNavItems.filter(([key]) => key !== 'more')
     : ownerNavItems;
+const secondaryPages = ['alerts', 'telegram', 'business', 'prepare', 'options', 'packs', 'documents', 'notifications'];
 const mainTabFor = (key) => {
   if (['prepare', 'options', 'packs', 'documents', 'business', 'telegram', 'alerts'].includes(key)) return 'more';
   return key;
@@ -170,7 +171,7 @@ export default function App() {
   useEffect(() => { load(); }, [token]);
   useEffect(() => {
     if (!currentUser) return;
-    const allowed = navItemsFor(currentUser).map(([key]) => key);
+    const allowed = [...navItemsFor(currentUser).map(([key]) => key), ...secondaryPages];
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!allowed.includes(active)) setActive('overview');
   }, [currentUser, active]);
@@ -195,7 +196,7 @@ export default function App() {
     window.history.replaceState({ kottraluyPage: 'inventory' }, '', `${window.location.pathname}${window.location.hash}`);
   }, []);
   const go = (key, target = null) => {
-    if (!navItemsFor(currentUser).some(([item]) => item === key) && !['alerts', 'telegram', 'business', 'prepare', 'options', 'packs', 'documents'].includes(key)) {
+    if (!navItemsFor(currentUser).some(([item]) => item === key) && !secondaryPages.includes(key)) {
       key = 'overview';
     }
     telegramHaptic('light');

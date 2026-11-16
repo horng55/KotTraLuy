@@ -41,18 +41,19 @@ class WorkspaceNotifier
         }
 
         $inventoryEvent = in_array($type, TelegramInventoryNotifier::INVENTORY_TYPES, true);
+        $sharedEvent = $owners && !str_starts_with($type, 'security.') && !str_starts_with($type, 'telegram.');
         $configuredRecipients = $inventoryEvent && ($business = Business::find($businessId))
             ? app(TelegramInventoryNotifier::class)->preferences($business)['recipients']
             : [];
-        $recipients = User::where('business_id', $businessId)->where(function ($query) use ($owners, $additionalRecipients, $configuredRecipients, $inventoryEvent) {
-            if ($inventoryEvent && $configuredRecipients) {
-                $query->whereIn('id', $configuredRecipients);
+        $recipients = User::where('business_id', $businessId)->where(function ($query) use ($owners, $additionalRecipients, $sharedEvent) {
+            if ($sharedEvent) {
+                $query->where('status', 'active');
             } elseif ($owners) {
                 $query->where(fn ($owner) => $owner->where('role', 'owner')->where('status', 'active'));
             } else {
                 $query->whereRaw('1 = 0');
             }
-            if (!$inventoryEvent) $query->orWhereIn('id', array_filter($additionalRecipients));
+            $query->orWhereIn('id', array_filter($additionalRecipients));
         })->where('status', 'active')->get();
 
         foreach ($recipients as $recipient) {
@@ -64,7 +65,7 @@ class WorkspaceNotifier
             ], [
                 'id' => (string) Str::uuid(),
                 'type' => $type,
-                'owner_only' => !in_array((int) $recipient->id, array_map('intval', $additionalRecipients), true),
+                'owner_only' => !$sharedEvent && !in_array((int) $recipient->id, array_map('intval', $additionalRecipients), true),
                 'data' => [
                     'key' => $type,
                     'category' => self::TYPES[$type][0],
@@ -74,7 +75,9 @@ class WorkspaceNotifier
                     'action_page' => self::TYPES[$type][1],
                 ],
             ]);
-            if ($inventoryEvent && $notification->wasRecentlyCreated) {
+            $telegramRecipient = !$configuredRecipients || in_array((int) $recipient->id, array_map('intval', $configuredRecipients), true);
+            $linkedRecipient = $recipient->telegram_chat_id && ($recipient->role === 'owner' || $recipient->telegram_enabled);
+            if (($inventoryEvent ? $telegramRecipient : $linkedRecipient) && $notification->wasRecentlyCreated) {
                 $delivery = \App\Models\TelegramNotificationDelivery::firstOrCreate([
                     'notification_id' => $notification->id,
                     'user_id' => $recipient->id,

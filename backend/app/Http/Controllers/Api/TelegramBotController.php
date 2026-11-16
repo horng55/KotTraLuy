@@ -38,6 +38,21 @@ class TelegramBotController
             return response()->json(['message' => 'Invalid Telegram update.'], 422);
         }
 
+        Log::info('Telegram update received.', ['update_id' => $update['update_id']]);
+
+        // A welcome must work before account linking or business access checks.
+        // It has no side effects, so a Telegram retry may safely send it again.
+        $message = $update['message'] ?? null;
+        $text = trim((string) ($message['text'] ?? ''));
+        if (($message['chat']['type'] ?? null) === 'private'
+            && ! empty($message['chat']['id'])
+            && preg_match('/^\/start(?:@\w+)?(?:\s+.*)?$/i', $text)
+            && ! preg_match('/^\/start(?:@\w+)?\s+link_\S+$/i', $text)) {
+            $sent = $this->sendMessage($token, $message['chat']['id'], $this->startMessage(null), true);
+
+            return response()->json(['ok' => $sent], $sent ? 200 : 502);
+        }
+
         $result = DB::transaction(function () use ($update) {
             $now = now();
             $inserted = DB::table('telegram_updates')->insertOrIgnore([
@@ -342,14 +357,10 @@ class TelegramBotController
 
     private function startMessage(?User $user): string
     {
-        if ($user) {
-            return "Welcome back to KotTraLuy! 👋\n\nYour Telegram account is connected to {$user->business?->name}. You can receive authorized inventory alerts here.\n\nSend /help to see available commands.";
-        }
-
-        return "Welcome to KotTraLuy! 👋\n\nManage your sales, inventory, and business operations.\n\nConnect your KotTraLuy account to receive inventory alerts.\n\nLog in to KotTraLuy, choose Connect Telegram, then open this bot link or send /link <token>.";
+        return "\u{1F44B} Welcome to KotTraLuy!\n\nManage your sales, stock, and business operations.\n\nConnect your KotTraLuy account to receive inventory alerts.";
     }
 
-    private function sendMessage(string $token, int|string $chatId, string $reply, bool $includeMiniApp = false): void
+    private function sendMessage(string $token, int|string $chatId, string $reply, bool $includeMiniApp = false): bool
     {
         try {
             $payload = [
@@ -366,8 +377,11 @@ class TelegramBotController
             }
             $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             if (!$response->successful() || $response->json('ok') !== true) {
-                Log::warning('Telegram bot sendMessage rejected.', ['chat_id' => $chatId, 'status' => $response->status(), 'error_category' => $response->json('error_code')]);
+                Log::warning('Telegram bot sendMessage rejected.', ['chat_id' => $chatId, 'status' => $response->status(), 'error_code' => $response->json('error_code'), 'description' => str_replace($token, '[REDACTED]', (string) $response->json('description'))]);
+                return false;
             }
+            Log::info('Telegram bot message accepted.', ['chat_id' => $chatId, 'message_id' => $response->json('result.message_id')]);
+            return true;
         } catch (ConnectionException|RequestException $exception) {
             Log::warning('Telegram sendMessage request failed.', [
                 'chat_id' => $chatId,
@@ -375,6 +389,7 @@ class TelegramBotController
                     ? $exception->response->status()
                     : null,
             ]);
+            return false;
         }
     }
 }

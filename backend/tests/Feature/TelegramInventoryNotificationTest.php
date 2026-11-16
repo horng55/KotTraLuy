@@ -16,6 +16,55 @@ class TelegramInventoryNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_shared_notifications_are_mirrored_to_linked_users_once_and_security_stays_private(): void
+    {
+        Queue::fake();
+        Config::set('services.telegram.bot_token', 'test-token');
+        Config::set('services.telegram.mini_app_url', 'https://demo.example.test');
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 101]]));
+        $business = Business::factory()->create();
+        $owner = User::withoutEvents(fn () => User::factory()->create(['business_id' => $business->id, 'role' => 'owner', 'status' => 'active', 'telegram_chat_id' => 111]));
+        $staff = User::withoutEvents(fn () => User::factory()->create(['business_id' => $business->id, 'role' => 'staff', 'status' => 'active', 'telegram_enabled' => true, 'telegram_chat_id' => 222]));
+        $unlinked = User::withoutEvents(fn () => User::factory()->create(['business_id' => $business->id, 'role' => 'staff', 'status' => 'active']));
+        $notifier = app(\App\Services\WorkspaceNotifier::class);
+        $params = ['actor' => '<Staff>', 'reference' => 'SALE-1', 'amount' => 25, 'currency' => 'USD'];
+        $notifier->publish($business->id, 'sale.created', 'mirror-sale', $params);
+        $notifier->publish($business->id, 'sale.created', 'mirror-sale', $params);
+        $alerts = WorkspaceNotification::where('event_key', 'mirror-sale')->get();
+        $this->assertCount(3, $alerts);
+        $deliveries = TelegramNotificationDelivery::whereIn('notification_id', $alerts->pluck('id'))->get();
+        $this->assertEqualsCanonicalizing([$owner->id, $staff->id], $deliveries->pluck('user_id')->all());
+        foreach ($deliveries as $delivery) {
+            $job = new SendTelegramInventoryNotification($delivery->id);
+            $job->handle(app(TelegramInventoryNotifier::class));
+            $job->handle(app(TelegramInventoryNotifier::class));
+            $this->assertSame('sent', $delivery->fresh()->status);
+        }
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => str_contains($request['text'], 'SALE-1') && str_contains($request['text'], '&lt;Staff&gt;') && str_contains($request['text'], '25.00 USD'));
+        $this->actingAs($staff, 'sanctum')->getJson('/api/notifications?category=sales')->assertOk()->assertJsonPath('total', 1);
+        $notifier->publish($business->id, 'security.password_changed', 'private-password', [], 'user', $staff->id, [$staff->id], false);
+        $this->assertSame([$staff->id], WorkspaceNotification::where('event_key', 'private-password')->pluck('notifiable_id')->all());
+    }
+
+    public function test_inventory_alerts_reach_all_active_workspace_members_with_selected_telegram_recipients(): void
+    {
+        Queue::fake();
+        $business = Business::factory()->create();
+        $owner = User::factory()->create(['business_id' => $business->id, 'role' => 'owner', 'status' => 'active']);
+        $staff = User::factory()->create(['business_id' => $business->id, 'role' => 'staff', 'status' => 'active']);
+        $inactive = User::factory()->create(['business_id' => $business->id, 'status' => 'inactive']);
+        $outsider = User::factory()->create();
+        $business->update(['notification_preferences' => ['recipients' => [$owner->id]]]);
+        app(\App\Services\WorkspaceNotifier::class)->publish($business->id, 'inventory.low_stock', 'shared-stock-alert', ['product' => 'Coca', 'quantity' => 2]);
+
+        $alerts = WorkspaceNotification::where('event_key', 'shared-stock-alert')->get();
+        $this->assertEqualsCanonicalizing([$owner->id, $staff->id], $alerts->pluck('notifiable_id')->all());
+        $this->assertTrue($alerts->every(fn ($alert) => !$alert->owner_only));
+        $this->assertSame([$owner->id], TelegramNotificationDelivery::whereIn('notification_id', $alerts->pluck('id'))->pluck('user_id')->all());
+        $this->actingAs($staff, 'sanctum')->getJson('/api/notifications?category=inventory')->assertOk()->assertJsonPath('total', 1);
+    }
+
     public function test_expiration_alert_is_queued_delivered_in_khmer_and_deduplicated(): void
     {
         Config::set('services.telegram.bot_token', 'test-token');
@@ -38,6 +87,7 @@ class TelegramInventoryNotificationTest extends TestCase
             'telegram_chat_id' => 7654321,
             'preferred_language' => 'km',
         ]);
+        Queue::fake();
         $product = Product::factory()->create([
             'business_id' => $business->id,
             'name' => 'Coca',
@@ -83,6 +133,7 @@ class TelegramInventoryNotificationTest extends TestCase
 
     public function test_delivery_is_skipped_when_workspace_scope_does_not_match(): void
     {
+        Queue::fake();
         $firstBusiness = Business::factory()->create();
         $secondBusiness = Business::factory()->create();
         $user = User::factory()->create(['business_id' => $firstBusiness->id, 'telegram_chat_id' => 7654321, 'telegram_enabled' => true]);

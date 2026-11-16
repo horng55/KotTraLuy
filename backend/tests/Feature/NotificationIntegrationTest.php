@@ -86,9 +86,9 @@ class NotificationIntegrationTest extends TestCase
         $this->postJson('/api/sales', $payload)->assertSuccessful();
         $created = WorkspaceNotification::where('type', 'sale.created')->where('notifiable_id', $owner->id)->sole();
         $this->assertEquals(35, $created->data['params']['amount']);
-        $this->assertSame(0, WorkspaceNotification::where('notifiable_id', $peer->id)->where('type', 'sale.created')->count());
+        $this->assertSame(1, WorkspaceNotification::where('notifiable_id', $peer->id)->where('type', 'sale.created')->count());
         $this->assertSame(1, WorkspaceNotification::where('type', 'inventory.low_stock')->where('notifiable_id', $owner->id)->count());
-        $this->assertSame(0, WorkspaceNotification::where('type', 'inventory.low_stock')->where('notifiable_id', $staff->id)->count());
+        $this->assertSame(1, WorkspaceNotification::where('type', 'inventory.low_stock')->where('notifiable_id', $staff->id)->count());
         $before = WorkspaceNotification::count();
         $this->postJson('/api/sales', $payload)->assertOk()->assertJsonPath('duplicate', true);
         app(InventoryAlertService::class)->refresh($business);
@@ -115,7 +115,7 @@ class NotificationIntegrationTest extends TestCase
         $this->postJson('/api/notifications/read-all')->assertOk()->assertJsonPath('unread_count', 0);
         $this->getJson('/api/notifications/unread-count')->assertOk()->assertJsonPath('unread_count', 0);
         $owner->update(['role' => 'staff']);
-        $this->getJson('/api/notifications')->assertOk()->assertJsonPath('total', 0);
+        $this->getJson('/api/notifications')->assertOk()->assertJsonPath('total', 3);
         $owner->update(['status' => 'inactive']);
         $this->getJson('/api/notifications')->assertForbidden();
     }

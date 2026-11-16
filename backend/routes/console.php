@@ -67,6 +67,8 @@ Artisan::command('telegram:configure', function () {
 })->purpose('Configure the Telegram webhook and stable Mini App menu button');
 
 Artisan::command('telegram:diagnose', function () {
+    $this->info('Loaded environment: '.app()->environmentFilePath());
+    $this->info('Configured bot username: '.(string) config('services.telegram.bot_username'));
     $token = (string) config('services.telegram.bot_token');
     if ($token === '') {
         $this->error('TELEGRAM_BOT_TOKEN is not configured.');
@@ -74,28 +76,40 @@ Artisan::command('telegram:diagnose', function () {
     }
 
     $baseUrl = "https://api.telegram.org/bot{$token}";
+    $failed = false;
     foreach (['getMe' => [], 'getWebhookInfo' => []] as $method => $payload) {
         try {
             $response = Http::timeout(15)->post($baseUrl.'/'.$method, $payload);
         } catch (\Throwable $exception) {
             $this->error($method.' failed: Telegram API is unreachable.');
-            return Command::FAILURE;
+            $failed = true;
+            continue;
         }
         if (!$response->successful() || $response->json('ok') !== true) {
-            $this->error($method.' failed: '.($response->json('description') ?? 'Telegram rejected the request'));
-            return Command::FAILURE;
+            $this->error($method.' failed (HTTP '.$response->status().', code '.($response->json('error_code') ?? 'unknown').'): '.str_replace($token, '[REDACTED]', (string) ($response->json('description') ?? 'Telegram rejected the request')));
+            $failed = true;
+            continue;
         }
+        $this->info($method.' HTTP '.$response->status().' (ok=true)');
         $result = $response->json('result', []);
         if ($method === 'getMe') {
             $this->info('Bot reachable: @'.($result['username'] ?? 'unknown').' (id '.($result['id'] ?? 'unknown').')');
+            if (strcasecmp(ltrim((string) config('services.telegram.bot_username'), '@'), (string) ($result['username'] ?? '')) !== 0) {
+                $this->error('Bot identity does not match TELEGRAM_BOT_USERNAME; account linking URLs target a different bot.');
+                return Command::FAILURE;
+            }
         } else {
             $this->info('Webhook URL configured: '.(($result['url'] ?? '') !== '' ? 'yes' : 'no'));
+            $expected = rtrim((string) config('app.url'), '/').'/api/telegram/webhook';
+            $matches = ($result['url'] ?? '') === $expected;
+            $this->info('Webhook matches APP_URL: '.($matches ? 'yes' : 'no'));
+            $failed = $failed || !$matches;
             $this->info('Pending updates: '.(int) ($result['pending_update_count'] ?? 0));
             if (!empty($result['last_error_message'])) $this->warn('Last Telegram webhook error: '.$result['last_error_message']);
         }
     }
 
-    return Command::SUCCESS;
+    return $failed ? Command::FAILURE : Command::SUCCESS;
 })->purpose('Check Telegram bot credentials and webhook health without exposing the bot token');
 
 Artisan::command('inventory:refresh-alerts', function (InventoryAlertService $alerts) {

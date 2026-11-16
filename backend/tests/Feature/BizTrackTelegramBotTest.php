@@ -17,6 +17,37 @@ class BizTrackTelegramBotTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_start_variants_reply_without_account_or_business_queries(): void
+    {
+        Config::set('services.telegram.webhook_secret', 'test-secret');
+        Config::set('services.telegram.bot_token', 'test-token');
+        Config::set('services.telegram.mini_app_url', 'https://kottraluy.tech');
+        Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]])]);
+        DB::shouldReceive('transaction')->never();
+
+        foreach (['/start', '/start@KotTraLuyBot', '/start demo'] as $index => $text) {
+            $this->postJson('/api/telegram/webhook', [
+                'update_id' => 800 + $index,
+                'message' => ['chat' => ['id' => 456789, 'type' => 'private'], 'text' => $text],
+            ], ['X-Telegram-Bot-Api-Secret-Token' => 'test-secret'])->assertOk();
+        }
+
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => $request['text'] === "\u{1F44B} Welcome to KotTraLuy!\n\nManage your sales, stock, and business operations.\n\nConnect your KotTraLuy account to receive inventory alerts.");
+    }
+
+    public function test_rejected_start_reply_returns_retryable_status(): void
+    {
+        Config::set('services.telegram.webhook_secret', 'test-secret');
+        Config::set('services.telegram.bot_token', 'test-token');
+        Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => false, 'error_code' => 401, 'description' => 'Unauthorized'], 401)]);
+
+        $this->postJson('/api/telegram/webhook', [
+            'update_id' => 899,
+            'message' => ['chat' => ['id' => 456789, 'type' => 'private'], 'text' => '/start'],
+        ], ['X-Telegram-Bot-Api-Secret-Token' => 'test-secret'])->assertStatus(502)->assertJson(['ok' => false]);
+    }
+
     public function test_unlinked_start_returns_welcome_and_mini_app_button(): void
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');

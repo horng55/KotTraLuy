@@ -90,6 +90,20 @@ class TelegramInventoryNotifier
 
     private function message(array $payload, string $language): string
     {
+        if (isset($payload['type']) && $payload['type'] !== 'test' && !in_array($payload['type'], self::INVENTORY_TYPES, true)) {
+            $messages = json_decode(file_get_contents(resource_path('notifications/'.($language === 'km' ? 'km' : 'en').'.json')), true, 512, JSON_THROW_ON_ERROR);
+            $key = 'notifications.'.$payload['type'];
+            $title = $messages[$key.'.title'] ?? $messages['notifications.fallback.title'];
+            $body = $messages[$key.'.message'] ?? $messages['notifications.fallback.message'];
+            $body = preg_replace_callback('/\{([a-z_]+)\}/', function ($match) use ($payload) {
+                $value = $payload[$match[1]] ?? '';
+                if (is_array($value)) $value = implode(', ', $value);
+                if ($match[1] === 'amount') $value = number_format((float) $value, 2).' '.($payload['currency'] ?? '');
+                return (string) $value;
+            }, $body);
+            $escape = fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            return "<b>KotTraLuy</b>\n<b>".$escape($title)."</b>\n".$escape($body)."\n".$escape($payload['workspace'] ?? '');
+        }
         $km = $language === 'km';
         $type = (string) ($payload['type'] ?? 'inventory.low_stock');
         if ($type === 'test') return $km ? "<b>KotTraLuy</b>\nការជូនដំណឹង Telegram សាកល្បងបានជោគជ័យ។" : "<b>KotTraLuy</b>\nTelegram test notification delivered successfully.";

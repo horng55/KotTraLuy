@@ -37,8 +37,12 @@ class SendTelegramInventoryNotification implements ShouldQueue
             return;
         }
         $preferences = $notifier->preferences($user->business);
+        if ((int) $notification->notifiable_id !== (int) $user->id || $notification->notifiable_type !== $user->getMorphClass() || ($notification->owner_only && $user->accessRole() === 'staff')) {
+            $delivery->update(['status' => 'skipped', 'last_error' => 'Notification is not visible to this recipient.']);
+            return;
+        }
         $preferenceKey = str_replace('inventory.', '', $notification->type);
-        if (!$preferences['telegram_enabled'] || empty($preferences[$preferenceKey])) {
+        if (in_array($notification->type, TelegramInventoryNotifier::INVENTORY_TYPES, true) && (!$preferences['telegram_enabled'] || empty($preferences[$preferenceKey]) || ($preferences['recipients'] && !in_array((int) $user->id, array_map('intval', $preferences['recipients']), true)))) {
             $delivery->update(['status' => 'skipped', 'last_error' => 'Telegram inventory notifications are disabled.']);
             return;
         }

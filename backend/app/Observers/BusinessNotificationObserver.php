@@ -34,7 +34,7 @@ class BusinessNotificationObserver
 
         if ($model instanceof Sale) {
             $actor = User::where('business_id', $model->business_id)->find($model->user_id);
-            if ($actor?->role === 'staff') {
+            if ($actor) {
                 $this->notifications->publish($model->business_id, 'sale.created', 'sale.created:'.$model->id, [...$this->saleParams($model), 'actor' => $actor->name], 'sale', $model->id, [$actor->id]);
             }
             $this->unpaid($model);
