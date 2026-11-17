@@ -43,10 +43,10 @@ class AuthController
 
         $user->setAttribute('access_role', $user->accessRole());
         $user->setAttribute('permissions', $user->permissionList());
-        return response()->json([
-            'user' => $user->load('business'),
+        return response()->json(app(\App\Services\WorkspaceDataVisibility::class)->filter([
+            'user' => $user->load('business')->toArray(),
             'token' => $token,
-        ], 201);
+        ], $user), 201);
     }
 
     public function login(Request $request)
@@ -80,10 +80,10 @@ class AuthController
 
         $user->setAttribute('access_role', $user->accessRole());
         $user->setAttribute('permissions', $user->permissionList());
-        return response()->json([
-            'user' => $user->load('business'),
+        return response()->json(app(\App\Services\WorkspaceDataVisibility::class)->filter([
+            'user' => $user->load('business')->toArray(),
             'token' => $token,
-        ]);
+        ], $user));
     }
 
     public function user(Request $request)

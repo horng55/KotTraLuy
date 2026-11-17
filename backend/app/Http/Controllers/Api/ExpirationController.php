@@ -22,9 +22,10 @@ class ExpirationController
             // image_storage_key remains hidden from JSON, but is needed by the
             // Product image_available accessor used by the shared thumbnail.
             ->with('product:id,name,unit,image_storage_key')->orderBy('expiry_date')->orderBy('id')->paginate(10);
-        $rows->getCollection()->transform(function ($batch) use ($today) {
-            $days = (int) $today->diffInDays($batch->expiry_date,false);
-            return [...$batch->toArray(),'days_remaining'=>$days,'expiration_status'=>$days < 0 ? 'expired' : ($days === 0 ? 'expires_today' : 'expiring_soon')];
+        $rows->getCollection()->transform(function ($batch) use ($today, $request) {
+            $date = $batch->expiry_date->toDateString();
+            $days = (int) $today->diffInDays(\Carbon\Carbon::parse($date, $today->timezone), false);
+            return [...$batch->toArray(),'days_remaining'=>$days,'time_remaining'=>app(\App\Services\ExpirationCountdown::class)->format($batch->expiry_date->toDateString(), $request->user()->preferred_language ?: 'en'),'expiration_status'=>$date < $today->toDateString() ? 'expired' : ($date === $today->toDateString() ? 'expires_today' : 'expiring_soon')];
         });
         return response()->json(['expired'=>(clone $expired)->distinct()->count('product_id'),
             'expiring_soon'=>(clone $soon)->distinct()->count('product_id'),

@@ -191,7 +191,7 @@ class BizTrackMvpTest extends TestCase
         $this->actingAs($user, 'sanctum');
 
         $ownerDashboard = $this->getJson('/api/dashboard');
-        $ownerDashboard->assertStatus(403);
+        $ownerDashboard->assertOk()->assertJsonMissingPath('expenses')->assertJsonMissingPath('today_net_profit');
 
         $this->getJson('/api/products/' . $product->id)
             ->assertStatus(403);

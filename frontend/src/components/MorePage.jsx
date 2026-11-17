@@ -1,3 +1,4 @@
+import { can, canAccessPage, canUseHub } from '../lib/permissions';
 import { text as uiLabel, t as tr } from '../lib/i18n';
 import { useState } from 'react';
 import { ArrowUpRight, BarChart3, Building2, ChevronRight, FileCheck2, Files, Landmark, Search, Send, Settings2, ShieldCheck, Sparkles, Users } from 'lucide-react';
@@ -13,20 +14,22 @@ const groups = [
 export default function MorePage({ onNavigate, currentUser }) {
   const [query, setQuery] = useState('');
   const [section, setSection] = useState('all');
-  const visible = groups.map(group => ({ ...group, links: group.links.filter(([key, title, description]) => (key !== 'team' || currentUser?.role === 'owner') && `${uiLabel(group.title)} ${uiLabel(title)} ${uiLabel(description)} ${group.title} ${title} ${description}`.toLowerCase().includes(query.toLowerCase())) })).filter(group => group.links.length && (section === 'all' || group.title === section));
+  const availableGroups = groups.map(group => ({ ...group, links: group.links.filter(([key]) => key === 'telegram' ? can(currentUser, 'telegram.settings') : canAccessPage(currentUser, key)) })).filter(group => group.links.length);
+  const visible = availableGroups.map(group => ({ ...group, links: group.links.filter(([, title, description]) => `${uiLabel(group.title)} ${uiLabel(title)} ${uiLabel(description)} ${group.title} ${title} ${description}`.toLowerCase().includes(query.toLowerCase())) })).filter(group => group.links.length && (section === 'all' || group.title === section));
   const navigate = key => {
     if (key === 'team') { setQuery(''); setSection("team.team_management"); requestAnimationFrame(() => document.getElementById('settings-team')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); return; }
     onNavigate(key);
   };
+  if (!canUseHub(currentUser)) return null;
   return <div className="settings-workspace">
     <div className="st-breadcrumb">{tr("settings.workspace")}<ChevronRight size={12} /><span>{tr("settings.settings_2")}</span></div>
     <header className="st-heading"><div><span className="st-eyebrow">{tr("settings.workspace_control_center")}</span><h1>{tr("settings.settings_2")}</h1><p>{tr("financing.manage_your_business_workspace_financial_tools_team_members_and_preferences")}</p></div><span className="st-private"><ShieldCheck size={15} />{tr("settings.private_workspace")}</span></header>
-    <div className="st-layout"><aside className="st-local-nav"><span className="st-nav-label">{tr("settings.settings")}</span><button aria-current={section === 'all' ? 'page' : undefined} onClick={() => setSection('all')}><Settings2 size={16} />{tr("settings.all_settings")}</button>{groups.map(({ title, icon: Icon }) => <button key={title} aria-current={section === title ? 'page' : undefined} onClick={() => setSection(title)}><Icon size={16} />{uiLabel(title)}</button>)}<div className="st-nav-note"><ShieldCheck size={18} /><strong>{tr("settings.your_workspace_your_control")}</strong><p>{tr("team.keep_your_business_details_current_and_give_each_team_member_their_own_account")}</p></div></aside>
+    <div className="st-layout"><aside className="st-local-nav"><span className="st-nav-label">{tr("settings.settings")}</span><button aria-current={section === 'all' ? 'page' : undefined} onClick={() => setSection('all')}><Settings2 size={16} />{tr("settings.all_settings")}</button>{availableGroups.map(({ title, icon: Icon }) => <button key={title} aria-current={section === title ? 'page' : undefined} onClick={() => setSection(title)}><Icon size={16} />{uiLabel(title)}</button>)}<div className="st-nav-note"><ShieldCheck size={18} /><strong>{tr("settings.your_workspace_your_control")}</strong><p>{tr("team.keep_your_business_details_current_and_give_each_team_member_their_own_account")}</p></div></aside>
       <main className="st-content"><label className="st-settings-search"><Search size={18} /><input aria-label={tr("settings.search_settings")} value={query} onChange={event => setQuery(event.target.value)} placeholder={tr("settings.search_settings_tools_and_integrations_2")} /><kbd>{tr("common.search")}</kbd></label>
         <div className="st-settings-groups">{visible.map(group => <section className="st-group" key={group.title}><header><h2>{uiLabel(group.title)}</h2><p>{uiLabel(group.copy)}</p></header><div className="st-link-grid">{group.links.map(([key, title, description, Icon]) => <button key={key} onClick={() => navigate(key)}><span className="st-link-icon"><Icon size={19} /></span><div><strong>{uiLabel(title)}</strong><small>{uiLabel(description)}</small></div><ArrowUpRight size={16} /></button>)}</div></section>)}</div>
         {!visible.length && <div className="st-no-results"><Search size={24} /><h2>{tr("settings.no_settings_found")}</h2><p>{tr("common.try_a_different_name_tool_or_category")}</p><button className="st-button" onClick={() => { setQuery(''); setSection('all'); }}>{tr("common.clear_search")}</button></div>}
         {currentUser?.role === 'staff' && !query && <ShiftPanel user={currentUser} />}
-        {currentUser?.role === 'owner' && !query && (section === 'all' || section === "team.team_management") && <UserManagementPanel currentUser={currentUser} />}
+        {can(currentUser, 'team.manage') && !query && (section === 'all' || section === "team.team_management") && <UserManagementPanel currentUser={currentUser} />}
       </main>
     </div>
   </div>;

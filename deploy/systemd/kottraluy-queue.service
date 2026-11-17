@@ -1,0 +1,23 @@
+[Unit]
+Description=KotTraLuy Laravel queue worker
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/kottraluy/current/backend
+ExecStart=/usr/bin/php artisan queue:work database --queue=default --sleep=3 --tries=5 --timeout=60 --max-time=3600
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=90
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

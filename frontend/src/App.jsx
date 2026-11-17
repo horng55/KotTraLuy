@@ -1,11 +1,13 @@
+import ShiftPanel from './components/ShiftPanel';
+import { can, canAny, canAccessPage, visibleNavigation, roleTranslation } from './lib/permissions';
 import { getLocale } from './lib/i18n';
 import { messageText } from './lib/i18n';
 import { t as tr } from './lib/i18n';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import AppHeader from './components/AppHeader';
 import NotificationProvider from './components/NotificationProvider';
 import NotificationsPage from './components/NotificationsPage';
-import { ArrowDown, ArrowUp, BarChart3, BookOpen, Boxes, Check, ChevronLeft, ChevronRight, CircleAlert, LayoutDashboard, Package, Plus, ShieldCheck, ShoppingCart, Sparkles, UserRound, WalletCards, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BarChart3, BookOpen, Boxes, Check, ChevronLeft, ChevronRight, CircleAlert, LayoutDashboard, Package, Plus, ShieldCheck, ShoppingCart, Sparkles, WalletCards, X } from 'lucide-react';
 import { apiFetch, clearToken, saveToken } from './lib/api';
 import PasswordChangePanel from './components/PasswordChangePanel';
 import TelegramAccessPanel from './components/TelegramAccessPanel';
@@ -25,7 +27,6 @@ import LoginScreen from './components/LoginScreen';
 import InvitationAcceptPage from './components/InvitationAcceptPage';
 import { getLanguage, setLanguage, subscribeLanguage, text as uiLabel, domainLabel, validateControl, clearControlValidation } from './lib/i18n';
 import { getTelegramWebApp, isTelegramMiniApp, setTelegramBackButton, syncTelegramEnvironment, telegramHaptic } from './lib/telegram';
-import { greetingTimeZone, useGreeting } from './lib/useGreeting';
 import { Select } from './components/FormUI';
 import './brand.css';
 import BrandLogo from './components/BrandLogo';
@@ -45,15 +46,8 @@ import loginLogo from './assets/kottraluy-login-logo.png';
 const authDefaults = { name: '', email: '', password: '', business_name: '', role: 'owner' };
 const SIDEBAR_COLLAPSED_KEY = 'kottraluy_sidebar_collapsed';
 const profileDefaults = { requested_amount: '', currency: 'USD', purpose: 'Working capital', requested_timing: 'Within 3 months', business_registration_status: 'unknown', bank_statement_status: 'missing', collateral_status: 'unknown' };
-const ownerNavItems = [
-  ['overview', "common.dashboard", BarChart3], ['records', "sales.sales_2", ShoppingCart], ['inventory', "stock.stock", Package], ['reports', "reports.reports", BarChart3], ['more', "settings.settings_2", LayoutDashboard],
-];
-const navItemsFor = user => user?.access_role === 'staff' || (user?.role === 'staff' && user?.job_role !== 'manager')
-  ? [['overview', "common.dashboard", BarChart3], ['records', "sales.sales_2", ShoppingCart], ['inventory', "stock.stock", Package], ['profile', "common.profile", UserRound]]
-  : user?.access_role === 'manager' || user?.job_role === 'manager'
-    ? ownerNavItems.filter(([key]) => key !== 'more')
-    : ownerNavItems;
-const secondaryPages = ['alerts', 'telegram', 'business', 'prepare', 'options', 'packs', 'documents', 'notifications'];
+const navIcons = { dashboard: BarChart3, sales: ShoppingCart, stock: Package, reports: BarChart3, hub: LayoutDashboard };
+const navItemsFor = user => visibleNavigation(user).map(item => [item.page, item.label, navIcons[item.icon]]);
 const mainTabFor = (key) => {
   if (['prepare', 'options', 'packs', 'documents', 'business', 'telegram', 'alerts'].includes(key)) return 'more';
   return key;
@@ -74,6 +68,8 @@ function readInventoryLink() {
 export default function App() {
   const [token, setToken] = useState(sessionStorage.getItem('biztrack_token') || '');
   const [currentUser, setCurrentUser] = useState(null);
+  const [workspaces, setWorkspaces] = useState([]);
+  const loadGeneration = useRef(0);
   const [notificationTarget, setNotificationTarget] = useState(() => readInventoryLink());
   const language = useSyncExternalStore(subscribeLanguage, getLanguage);
   const [authMode, setAuthMode] = useState('login'); const [authForm, setAuthForm] = useState(authDefaults); const [active, setActive] = useState(() => readInventoryLink() ? 'inventory' : window.history.state?.kottraluyPage || 'overview'); const [mobileNav, setMobileNav] = useState(false);
@@ -84,7 +80,7 @@ export default function App() {
   const [telegramMiniApp, setTelegramMiniApp] = useState(() => isTelegramMiniApp(getTelegramWebApp()));
 
   useEffect(() => {
-    const expired = () => { setToken(''); setCurrentUser(null); setDashboard(null); setFinance(null); setBusiness({}); setRecords({ sales: [], expenses: [] }); setError('Please sign in again. Your session has expired.'); };
+    const expired = () => { ++loadGeneration.current; setProducts([]); setPacks([]); setWorkspaces([]); setProfile(profileDefaults); setShowProduct(false); setShowRecord(false); setToken(''); setCurrentUser(null); setDashboard(null); setFinance(null); setBusiness({}); setRecords({ sales: [], expenses: [] }); setError('Please sign in again. Your session has expired.'); };
     const passwordRequired = () => setCurrentUser(current => current ? { ...current, must_change_password: true } : current);
     window.addEventListener('kottraluy:session-expired', expired);
     window.addEventListener('kottraluy:password-required', passwordRequired);
@@ -146,34 +142,45 @@ export default function App() {
     return setTelegramBackButton(active !== 'overview', () => window.history.back());
   }, [telegramMiniApp, active]);
 
+  const clearWorkspaceData = () => {
+    setDashboard(null); setFinance(null); setProducts([]); setPacks([]); setRecords({ sales: [], expenses: [] }); setProfile(profileDefaults); setBusiness({}); setShowProduct(false); setShowRecord(false);
+  };
   const load = async () => {
-    if (!token) return; setLoading(true); setError('');
+    if (!token) return;
+    const generation = ++loadGeneration.current;
+    setLoading(true); setError(''); clearWorkspaceData(); setCurrentUser(null);
     try {
       const user = await apiFetch('/user');
-      setCurrentUser(user);
-      setBusiness(user.business || {});
+      if (generation !== loadGeneration.current) return;
+      setCurrentUser(user); setBusiness(user.business || {});
       if (user.must_change_password) return;
-      const accessRole = user.access_role || (user.role === 'owner' ? 'owner' : user.job_role === 'manager' ? 'manager' : 'staff');
-      const isOwner = accessRole === 'owner'; const isStaff = accessRole === 'staff';
-      const [dash, fin, productList, saleList, expenseList, packList] = await Promise.all([
-        apiFetch(isStaff ? '/my-dashboard' : '/dashboard'),
-        isOwner ? apiFetch('/financing/overview') : Promise.resolve(null),
-        apiFetch('/products'),
-        apiFetch('/sales'),
-        isStaff ? Promise.resolve([]) : apiFetch('/expenses'),
-        isOwner ? apiFetch('/financing/packs').catch(() => []) : Promise.resolve([]),
+      const [dash, fin, productList, saleList, expenseList, packList, workspaceList] = await Promise.all([
+        canAny(user, ['dashboard.personal', 'dashboard.operational']) ? apiFetch('/dashboard') : null,
+        can(user, 'financing') ? apiFetch('/financing/overview') : null,
+        can(user, 'inventory.read') ? apiFetch('/products') : [],
+        canAny(user, ['sales.read.own', 'sales.read.all']) ? apiFetch('/sales') : [],
+        can(user, 'expenses.manage') ? apiFetch('/expenses') : [],
+        can(user, 'financing') ? apiFetch('/financing/packs') : [],
+        apiFetch('/workspaces'),
       ]);
-      setDashboard(dash); setFinance(fin); setProducts(productList); setPacks(packList); setRecords({ sales: saleList, expenses: expenseList }); setBusiness(fin?.business_profile || dash.business || user.business || {}); setProfile({ ...profileDefaults, ...(fin?.profile || {}) });
-    } catch (e) { setError(e); } finally { setLoading(false); }
+      if (generation !== loadGeneration.current) return;
+      setDashboard(dash); setFinance(fin); setProducts(productList); setPacks(packList); setRecords({ sales: saleList, expenses: expenseList }); setBusiness(fin?.business_profile || dash?.business || user.business || {}); setProfile({ ...profileDefaults, ...(fin?.profile || {}) }); setWorkspaces(workspaceList);
+    } catch (failure) { if (generation === loadGeneration.current) setError(failure); }
+    finally { if (generation === loadGeneration.current) setLoading(false); }
+  };
+  const switchWorkspace = async id => {
+    ++loadGeneration.current; clearWorkspaceData(); setNotificationTarget(null); setCurrentUser(null); setLoading(true); setActive('overview');
+    window.history.replaceState({ kottraluyPage: 'overview' }, '', window.location.href);
+    try { const result = await apiFetch('/workspaces/'+id+'/switch', { method: 'POST' }); saveToken(result.token); setToken(result.token); }
+    catch (failure) { setError(failure); await load(); }
   };
   // Synchronize authenticated workspace state after login and token changes.
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [token]);
   useEffect(() => {
     if (!currentUser) return;
-    const allowed = [...navItemsFor(currentUser).map(([key]) => key), ...secondaryPages];
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!allowed.includes(active)) setActive('overview');
+    if (!canAccessPage(currentUser, active)) setActive('overview');
   }, [currentUser, active]);
   useEffect(() => { document.documentElement.lang = language; document.title = active === 'more' ? `KotTraLuy · ${tr("settings.settings_2")}` : tr("common.app_title"); }, [language, active]);
   useEffect(() => {
@@ -196,7 +203,7 @@ export default function App() {
     window.history.replaceState({ kottraluyPage: 'inventory' }, '', `${window.location.pathname}${window.location.hash}`);
   }, []);
   const go = (key, target = null) => {
-    if (!navItemsFor(currentUser).some(([item]) => item === key) && !secondaryPages.includes(key)) {
+    if (!canAccessPage(currentUser, key)) {
       key = 'overview';
     }
     telegramHaptic('light');
@@ -209,26 +216,28 @@ export default function App() {
   };
   const logout = async () => {
     try {
+      ++loadGeneration.current;
       await apiFetch('/logout', { method: 'POST' });
       clearToken(); setToken(''); setCurrentUser(null);
       setDashboard(null); setFinance(null); setBusiness({});
       setRecords({ sales: [], expenses: [] }); setProducts([]); setPacks([]);
-      setError(''); setMobileNav(false); setAuthForm(authDefaults); setAuthMode('login');
+      setWorkspaces([]); setProfile(profileDefaults); setShowRecord(false); setShowProduct(false); setError(''); setMobileNav(false); setAuthForm(authDefaults); setAuthMode('login');
     } catch (failure) { setError(failure); }
   };  const submitAuth = async (event) => { event.preventDefault(); setLoading(true); try { const result = await apiFetch(authMode === 'login' ? '/login' : '/register', { method: 'POST', body: JSON.stringify(authMode === 'login' ? { email: authForm.email, password: authForm.password } : authForm) }); saveToken(result.token); setCurrentUser(result.user); setToken(result.token); } catch (e) { setError(e); } finally { setLoading(false); } };
   const toggleSidebar = () => setSidebarCollapsed(current => { const next = !current; try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next)); } catch { /* Keep the preference in memory when storage is unavailable. */ } return next; });
   const invitationToken = new URLSearchParams(window.location.search).get('invite');
   if (!token && invitationToken) return <InvitationAcceptPage token={invitationToken} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} onAccepted={result => { setCurrentUser(result.user); setToken(result.token); window.history.replaceState({}, '', window.location.pathname); }} />;
   if (!token) return <LoginScreen mode={authMode} setMode={setAuthMode} form={authForm} setForm={setAuthForm} submit={submitAuth} loading={loading} error={messageText(error)} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} />;
-  return <NotificationProvider key={`${currentUser?.id}:${currentUser?.business_id}:${currentUser?.access_role || currentUser?.role}:${currentUser?.status}`} user={currentUser}><div className={`app-shell${telegramMiniApp ? ' telegram-mini-app' : ''}`}><Sidebar active={active} go={go} mobile={mobileNav} close={() => setMobileNav(false)} collapsed={sidebarCollapsed} toggleCollapsed={toggleSidebar} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} currentUser={currentUser} /><div className="main-shell"><AppHeader title={uiLabel(titleFor(active))} business={business} currentUser={currentUser} onNavigate={go} onMenu={() => setMobileNav(true)} onLogout={logout} language={language} onLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} /><main className="page"><div className="breadcrumbs"><span>{tr("settings.workspace")}</span><ChevronRight size={14} /><strong>{business.name || tr("common.my_business")}</strong><span className="workspace-badge">{tr("reports.self_reported_workspace")}</span><span className="avatar">{(business.name || 'RA').slice(0, 2).toUpperCase()}</span></div>{active !== 'inventory' && <div className="page-heading"><div><p className="eyebrow">{uiLabel(titleFor(active))}</p><h1>{uiLabel(titleFor(active))}</h1><p className="subheading">{uiLabel(pageDescription(active))}</p></div><div className="heading-actions">{active === 'inventory' && currentUser?.access_role !== 'staff' && <button className="button primary" onClick={() => { setEditingProduct(null); setShowProduct(true); }}><Plus size={15} />{tr("stock.add_product_3")}</button>}</div></div>}{loading && <div className="loading-line"><span />{tr("settings.syncing_workspace_data")}</div>}{currentUser?.must_change_password ? <PasswordChangePanel required onChanged={() => { setCurrentUser({ ...currentUser, must_change_password: false }); load(); }} /> : <PageContent active={active} dashboard={dashboard} finance={finance} products={products} financingError={messageText(financingError)} packs={packs} profile={profile} setProfile={setProfile} business={business} setBusiness={setBusiness} records={records} onNavigate={go} reload={load} setError={setError} currentUser={currentUser} language={language} notificationTarget={notificationTarget} />}</main><MobileTabBar active={active} go={go} currentUser={currentUser} /><footer><span><span className="status-dot" />{tr("documents.data_belongs_to_this_workspace_documents_are_availability_only")}</span><button onClick={logout}>{tr("common.log_out")}</button></footer></div>{showRecord && <RecordModal products={dashboard?.products || []} close={() => setShowRecord(false)} reload={load} setError={setError} />}{showProduct && <ProductModal product={editingProduct} close={() => setShowProduct(false)} reload={load} setError={setError} />}{error && <button className="error-toast" onClick={() => setError('')}>{messageText(error)}<X size={15} /></button>}</div></NotificationProvider>;
+  return <NotificationProvider key={`${currentUser?.id}:${currentUser?.business_id}:${currentUser?.access_role || currentUser?.role}:${currentUser?.status}`} user={currentUser}><div className={`app-shell${telegramMiniApp ? ' telegram-mini-app' : ''}`}><Sidebar active={active} go={go} mobile={mobileNav} close={() => setMobileNav(false)} collapsed={sidebarCollapsed} toggleCollapsed={toggleSidebar} language={language} toggleLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} currentUser={currentUser} /><div className="main-shell"><AppHeader title={uiLabel(titleFor(active))} business={business} currentUser={currentUser} onNavigate={go} onMenu={() => setMobileNav(true)} onLogout={logout} workspaces={workspaces} onWorkspaceSwitch={switchWorkspace} language={language} onLanguage={() => setLanguage(language === 'en' ? 'km' : 'en')} /><main className="page"><div className="breadcrumbs"><span>{tr("settings.workspace")}</span><ChevronRight size={14} /><strong>{business.name || tr("common.my_business")}</strong><span className="workspace-badge">{tr("reports.self_reported_workspace")}</span><span className="avatar">{(business.name || 'RA').slice(0, 2).toUpperCase()}</span></div>{active !== 'inventory' && <div className="page-heading"><div><p className="eyebrow">{uiLabel(titleFor(active))}</p><h1>{uiLabel(titleFor(active))}</h1><p className="subheading">{uiLabel(pageDescription(active))}</p></div><div className="heading-actions">{active === 'inventory' && can(currentUser, 'inventory.manage') && <button className="button primary" onClick={() => { setEditingProduct(null); setShowProduct(true); }}><Plus size={15} />{tr("stock.add_product_3")}</button>}</div></div>}{loading && <div className="loading-line"><span />{tr("settings.syncing_workspace_data")}</div>}{!currentUser ? null : currentUser.must_change_password ? <PasswordChangePanel required onChanged={() => { setCurrentUser({ ...currentUser, must_change_password: false }); load(); }} /> : <PageContent active={active} dashboard={dashboard} finance={finance} products={products} financingError={messageText(financingError)} packs={packs} profile={profile} setProfile={setProfile} business={business} setBusiness={setBusiness} records={records} onNavigate={go} reload={load} setError={setError} currentUser={currentUser} language={language} notificationTarget={notificationTarget} />}</main><MobileTabBar active={active} go={go} currentUser={currentUser} /><footer><span><span className="status-dot" />{tr("documents.data_belongs_to_this_workspace_documents_are_availability_only")}</span><button onClick={logout}>{tr("common.log_out")}</button></footer></div>{showRecord && <RecordModal products={dashboard?.products || []} close={() => setShowRecord(false)} reload={load} setError={setError} />}{showProduct && <ProductModal product={editingProduct} close={() => setShowProduct(false)} reload={load} setError={setError} />}{error && <button className="error-toast" onClick={() => setError('')}>{messageText(error)}<X size={15} /></button>}</div></NotificationProvider>;
 }
 
 function PageContent({ active, dashboard, finance, products, financingError, packs, profile, setProfile, business, setBusiness, records, onNavigate, reload, setError, currentUser, language, notificationTarget }) {
+  if (!canAccessPage(currentUser, active)) return null;
   if (active === 'notifications') return <NotificationsPage language={language} onNavigate={onNavigate} />;
   const topbar = null;
-  if (active === 'overview') return <>{topbar}{currentUser?.access_role === 'staff' ? <StaffDashboard dashboard={dashboard} currentUser={currentUser} onNavigate={onNavigate} language={language} /> : <HomePage dashboard={dashboard} records={records} products={products} business={business} currentUser={currentUser} onNavigate={onNavigate} reload={reload} language={language} />}</>;
+  if (active === 'overview') return <HomePage dashboard={dashboard} records={records} products={products} business={business} currentUser={currentUser} onNavigate={onNavigate} reload={reload} language={language} />;
   if (active === 'records') return <>{topbar}<RecordsHub records={records} business={business} reload={reload} notificationTarget={notificationTarget} language={language} currentUser={currentUser} /></>;
-  if (active === 'reports') return <>{topbar}<ReportsLivePage key={`${currentUser?.id}:${currentUser?.business_id}`} language={language} defaultCurrency={business?.currency || currentUser?.business?.currency || 'USD'} /></>;
+  if (active === 'reports') return <>{topbar}<ReportsLivePage key={`${currentUser?.id}:${currentUser?.business_id}`} currentUser={currentUser} language={language} defaultCurrency={business?.currency || currentUser?.business?.currency || 'USD'} /></>;
   if (active === 'alerts') return <>{topbar}<InventoryAlertsPage onNavigate={onNavigate} /></>;
   if (active === 'inventory') return <>{topbar}<InventoryLivePage key={currentUser?.business_id} notificationTarget={notificationTarget} currentUser={currentUser} business={business} reload={reload} language={language} /></>;
   if (active === 'more') return <>{topbar}<MorePage onNavigate={onNavigate} currentUser={currentUser} /></>;
@@ -238,7 +247,7 @@ function PageContent({ active, dashboard, finance, products, financingError, pac
   if (active === 'documents') return <>{topbar}<DocumentsPage documents={finance?.documents || []} reload={reload} /></>;
   if (active === 'business') return <>{topbar}<BusinessProfilePage business={business} setBusiness={setBusiness} reload={reload} /></>;
   if (active === 'telegram') return <>{topbar}<TelegramAccessPanel user={currentUser} /></>;
-  if (active === 'profile') return <>{topbar}<StaffProfile currentUser={currentUser} business={business} /></>;
+  if (active === 'profile') return <>{topbar}<AccountProfile currentUser={currentUser} business={business} onNavigate={onNavigate} /></>;
   return <>{topbar}<TelegramAccessPanel user={currentUser} /></>;
 }
 
@@ -247,12 +256,8 @@ function Brand({ collapsed = false }) {
     <BrandLogo compact={collapsed} className={collapsed ? 'sidebar-brand-mark' : 'sidebar-brand-logo'} />
   </div>;
 }
-function StaffDashboard({ dashboard, currentUser, onNavigate, language }) {
-  const greeting = useGreeting(language, greetingTimeZone(currentUser));
-  return <div className="staff-dashboard"><section className="panel staff-welcome"><p className="eyebrow">{tr("common.dashboard")}</p><h1 className="dashboard-greeting">{greeting}, {currentUser?.name || currentUser?.username || tr("team.workspace_member")}!</h1><p>{dashboard?.business?.name || tr("common.my_business")}</p></section><div className="metrics"><Metric label={tr("sales.sales_recorded")} value={dashboard?.today_sales_count ?? 0} tone="count" note={tr("sales.recorded_today")} /><Metric label={tr("common.total")} value={money(dashboard?.today_sales_total ?? 0, dashboard?.business?.currency || 'USD')} tone="cash" note={tr("sales.your_sales_today")} /></div><section className="panel staff-shift"><div><strong>{tr("team.assigned_work_shift")}</strong><p>{dashboard?.assigned_shift ? tr("team.shift_label", { shift: dashboard.assigned_shift }) : tr("common.not_assigned")}</p></div><button className="button primary" onClick={() => onNavigate('records')}>{tr("sales.new_sale")}<ChevronRight size={15} /></button></section><section className="panel"><PanelTitle title={tr("sales.recent_transactions")} subtitle={tr("sales.your_latest_sales_and_business_expenses")} />{dashboard?.recent_sales?.length ? <RecordList records={dashboard.recent_sales.map(sale => ({ type: 'Sale', description: sale.sale_no, date: sale.sold_at, amount: sale.total_amount, currency: sale.currency }))} empty={tr("sales.no_recent_records_yet_add_a_sale_purchase_or_expense_to_start_your_history")} /> : <EmptyState icon={<ShoppingCart />} title={tr("sales.no_sales_recorded_yet")} copy={tr("sales.start_tracking_your_business_income_by_recording_your_first_sale")} />}</section><section className="panel"><PanelTitle title={tr("stock.inventory_alerts")} subtitle={tr("stock.low_stock_items_from_your_records")} />{dashboard?.alerts?.length ? dashboard.alerts.map(alert => <div className="alert-row" key={alert.id}><CircleAlert size={16} /><span>{alert.product?.name}</span><strong>{alert.condition}</strong></div>) : <EmptyState icon={<Boxes />} title={tr("stock.inventory_looks_clear")} copy={tr("stock.items_at_or_below_minimum_stock_will_appear_here")} />}</section></div>;
-}
-function StaffProfile({ currentUser, business }) {
-  return <section className="panel staff-profile"><p className="eyebrow">{tr("common.profile_menu")}</p><h1>{currentUser?.name || tr("team.workspace_member")}</h1><dl><div><dt>{tr("common.email")}</dt><dd>{currentUser?.email || currentUser?.username || '—'}</dd></div><div><dt>{tr("settings.workspace")}</dt><dd>{business?.name || tr("common.my_business")}</dd></div><div><dt>{tr("team.workspace_role")}</dt><dd>{currentUser?.access_role === 'manager' ? tr("team.manager") : tr("team.staff")}</dd></div><div><dt>{tr("team.assigned_work_shift")}</dt><dd>{currentUser?.assigned_shift ? tr("team.shift_label", { shift: currentUser.assigned_shift }) : tr("common.not_assigned")}</dd></div></dl></section>;
+function AccountProfile({ currentUser, business, onNavigate }) {
+  return <section className="panel staff-profile"><p className="eyebrow">{tr("common.profile_menu")}</p><h1>{currentUser?.name || tr("team.workspace_member")}</h1><dl><div><dt>{tr("common.email")}</dt><dd>{currentUser?.email || currentUser?.username || '—'}</dd></div><div><dt>{tr("settings.workspace")}</dt><dd>{business?.name || tr("common.my_business")}</dd></div><div><dt>{tr("team.workspace_role")}</dt><dd>{tr(roleTranslation(currentUser))}</dd></div><div><dt>{tr("team.assigned_work_shift")}</dt><dd>{currentUser?.assigned_shift ? tr("team.shift_label", { shift: currentUser.assigned_shift }) : tr("common.not_assigned")}</dd></div></dl>{can(currentUser, 'telegram.link') && <button className="button primary" onClick={() => onNavigate('telegram')}>{tr("telegram.connect_telegram")}</button>}<PasswordChangePanel /><ShiftPanel user={currentUser} /></section>;
 }
 function TelegramNavIcon({ size = 17 }) { return <img className="nav-icon" src={telegramBotIcon} alt="" aria-hidden="true" width={size} height={size} />; }
 function InventoryNavIcon({ size = 17 }) { return <img className="nav-icon" src={inventoryIcon} alt="" aria-hidden="true" width={size} height={size} />; }

@@ -17,7 +17,7 @@ class RoleBasedAccessTest extends TestCase
         $staff = User::factory()->create(['business_id' => $business->id, 'role' => 'staff', 'assigned_shift' => 'A']);
 
         $this->actingAs($staff, 'sanctum')->getJson('/api/my-dashboard')->assertOk()->assertJsonPath('access_role', 'staff');
-        $this->actingAs($staff, 'sanctum')->getJson('/api/dashboard')->assertForbidden();
+        $this->actingAs($staff, 'sanctum')->getJson('/api/dashboard')->assertOk()->assertJsonMissingPath('expenses')->assertJsonMissingPath('today_net_profit');
         $this->actingAs($staff, 'sanctum')->getJson('/api/financing/overview')->assertForbidden();
         $this->actingAs($staff, 'sanctum')->getJson('/api/users')->assertForbidden();
     }

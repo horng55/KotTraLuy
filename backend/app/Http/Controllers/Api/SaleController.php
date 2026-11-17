@@ -190,7 +190,7 @@ class SaleController
 
     public function addPayment(Request $request, Sale $sale)
     {
-        if ((int) $sale->business_id !== (int) $request->user()->business_id) return response()->json(['message'=>'You do not have access to this business.'], 403);
+        if ((int) $sale->business_id !== (int) $request->user()->business_id || (!$request->user()->canDo('sales.read.all') && (int) $sale->user_id !== (int) $request->user()->id)) return response()->json(['message'=>'You do not have access to this business.'], 403);
         $data = $request->validate(['amount'=>'required|numeric|min:0.01','paid_at'=>'nullable|date','notes'=>'nullable|string','idempotency_key'=>'nullable|string|max:100']);
         if (!empty($data['idempotency_key']) && SalePayment::where('business_id',$sale->business_id)->where('idempotency_key',$data['idempotency_key'])->exists()) return response()->json(['data'=>$sale->load('payments'),'duplicate'=>true]);
         if ((float) $data['amount'] > (float) $sale->outstanding_balance) return response()->json(['message'=>'Payment exceeds outstanding balance.'],422);
@@ -200,7 +200,7 @@ class SaleController
 
     public function show(Request $request, Sale $sale)
     {
-        if ((int) $sale->business_id !== (int) $request->user()->business_id) {
+        if ((int) $sale->business_id !== (int) $request->user()->business_id || (!$request->user()->canDo('sales.read.all') && (int) $sale->user_id !== (int) $request->user()->id)) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
 
@@ -209,7 +209,7 @@ class SaleController
 
     public function update(Request $request, Sale $sale)
     {
-        if ((int) $sale->business_id !== (int) $request->user()->business_id) {
+        if ((int) $sale->business_id !== (int) $request->user()->business_id || (!$request->user()->canDo('sales.read.all') && (int) $sale->user_id !== (int) $request->user()->id)) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
 
@@ -225,7 +225,7 @@ class SaleController
 
     public function destroy(Request $request, Sale $sale)
     {
-        if ((int) $sale->business_id !== (int) $request->user()->business_id) {
+        if ((int) $sale->business_id !== (int) $request->user()->business_id || (!$request->user()->canDo('sales.read.all') && (int) $sale->user_id !== (int) $request->user()->id)) {
             return response()->json(['message' => 'You do not have access to this business.'], 403);
         }
 
@@ -243,7 +243,7 @@ class SaleController
             if (!$request->user()->canDo('sales.read.all') && (int) $shift->user_id !== (int) $request->user()->id) {
                 abort(403, 'You do not have access to this shift.');
             }
-            if ($request->user()->accessRole() === 'staff' && $shift->status !== 'open') {
+            if (!$request->user()->canDo('shifts.manage') && $shift->status !== 'open') {
                 abort(403, 'Open your assigned shift before recording a sale.');
             }
 

@@ -13,6 +13,13 @@ class TelegramMiniAppTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::preventStrayRequests();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
+    }
+
     public function test_linked_user_can_authenticate_from_valid_telegram_init_data(): void
     {
         Config::set('services.telegram.bot_token', 'test-token');

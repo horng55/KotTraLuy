@@ -129,7 +129,7 @@ class TelegramBotController
             $user->forceFill(['preferred_language' => 'en'])->save();
         }
 
-        if ($user->role === 'staff' && ! $user->telegram_enabled) {
+        if ($user->role !== 'owner' && ! $user->telegram_enabled) {
             return 'Telegram access is disabled for your account. Ask the business owner to enable it.';
         }
 
@@ -142,6 +142,7 @@ class TelegramBotController
         } elseif (in_array($trimmed, ['help', '/help', 'menu'], true)) {
             $reply = "KotTraLuy commands:\n- sale <product> <qty> <price>\n- purchase <product> <qty> <cost>\n- waste <product> <qty> <reason>\n- start shift\n- close shift\n- today\n- stock\nExample: sale Milk 4 3.5";
         } elseif (preg_match('/^sale\s+(.+?)\s+([1-9]\d*)\s+([0-9]+(?:\.[0-9]+)?)$/i', $text, $matches)) {
+            if (!$user->canDo(str_starts_with(Str::lower($text), 'sale ') ? 'sales.create' : (str_starts_with(Str::lower($text), 'purchase ') ? 'purchases.manage' : 'waste.manage'))) return 'You do not have permission to perform this action.';
             $productName = trim($matches[1]);
             $quantity = (int) $matches[2];
             $unitPrice = (float) $matches[3];
@@ -220,6 +221,7 @@ class TelegramBotController
                 $reply = "Waste recorded successfully for {$quantity} {$product->name}.";
             }
         } elseif (strtolower($text) === 'start shift') {
+            if (!$user->canDo('shifts.own')) return 'You do not have permission to perform this action.';
             $existing = Shift::where('business_id', $user->business_id)
                 ->where('user_id', $user->id)
                 ->where('status', 'open')
@@ -241,6 +243,7 @@ class TelegramBotController
                 $reply = "Shift started successfully. Shift #{$shift->id} is now open.";
             }
         } elseif (strtolower($text) === 'close shift' || strtolower($text) === 'end shift') {
+            if (!$user->canDo('shifts.own')) return 'You do not have permission to perform this action.';
             $shift = Shift::where('business_id', $user->business_id)
                 ->where('user_id', $user->id)
                 ->where('status', 'open')
@@ -259,12 +262,15 @@ class TelegramBotController
                 $reply = 'Shift closed successfully.';
             }
         } elseif (strtolower($text) === 'today') {
+            if (!$user->canDo('sales.read.own') && !$user->canDo('sales.read.all')) return 'You do not have permission to perform this action.';
             $salesTotal = Sale::where('business_id', $user->business_id)
+                ->when(!$user->canDo('sales.read.all'), fn ($query) => $query->where('user_id', $user->id))
                 ->whereDate('sold_at', now()->toDateString())
                 ->sum('total_amount');
 
             $reply = 'Today sales total: $'.number_format((float) $salesTotal, 2);
         } elseif (in_array($trimmed, ['stock', '/stock'], true)) {
+            if (!$user->canDo('inventory.read')) return 'You do not have permission to perform this action.';
             $products = Product::where('business_id', $user->business_id)
                 ->where('is_active', true)
                 ->orderBy('name')

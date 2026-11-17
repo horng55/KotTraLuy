@@ -56,7 +56,7 @@ class InventoryAlertService
                 });
             }
             if ($batch && in_array($condition,['expired','expires_today','expiring_soon'])) {
-                $daysRemaining = Carbon::now($business->timezone ?: 'Asia/Phnom_Penh')->startOfDay()->diffInDays($batch->expiry_date, false);
+                $daysRemaining = (int) now(ExpirationCountdown::TIMEZONE)->startOfDay()->diffInDays(Carbon::parse($batch->expiry_date->toDateString(), ExpirationCountdown::TIMEZONE), false);
                 $params = ['product'=>$product->name,'quantity'=>$batch->quantity_remaining,'unit'=>$product->unit,'expiry_date'=>$batch->expiry_date->toDateString(),'days_remaining'=>$daysRemaining,'batch_id'=>$batch->id,'batch_code'=>$batch->batch_code];
                 $event = 'expiration:'.$batch->id.':'.$batch->expiry_date->toDateString().':'.$condition.':'.$business->expiry_warning_days;
                 app(WorkspaceNotifier::class)->publish($business->id,'inventory.'.$condition,$event,$params,'product',$product->id);

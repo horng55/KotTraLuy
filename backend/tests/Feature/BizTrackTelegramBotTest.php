@@ -17,6 +17,13 @@ class BizTrackTelegramBotTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::preventStrayRequests();
+        \Illuminate\Support\Facades\Queue::fake();
+    }
+
     public function test_start_variants_reply_without_account_or_business_queries(): void
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
@@ -71,7 +78,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         $user = User::factory()->create([
@@ -132,7 +139,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         User::factory()->create([
@@ -182,7 +189,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         $user = User::factory()->create([
@@ -227,7 +234,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         $user = User::factory()->create(['business_id' => $business->id, 'role' => 'owner']);
@@ -292,7 +299,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         $user = User::factory()->create(['business_id' => $business->id]);
@@ -342,7 +349,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         User::factory()->create([
@@ -379,7 +386,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         $user = User::factory()->create(['business_id' => $business->id]);
@@ -468,7 +475,7 @@ class BizTrackTelegramBotTest extends TestCase
     {
         Config::set('services.telegram.webhook_secret', 'test-secret');
         Config::set('services.telegram.bot_token', 'test-token');
-        Http::fake();
+        Http::fake(fn () => Http::response(['ok' => true, 'result' => ['message_id' => 1]]));
 
         $business = Business::factory()->create();
         $user = User::factory()->create(['business_id' => $business->id]);

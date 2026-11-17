@@ -101,3 +101,19 @@
   .ig-permissions dl > div { align-items: flex-start; }
   .ig-permissions dt { max-width: 60%; }
 }
+.ig-main { display:grid; gap:24px; min-width:0; }
+.ig-notification-settings { padding:24px; }
+.ig-notification-settings .ig-setting-grid label,.ig-recipient-list label { min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px; }
+.ig-notification-settings input[type=checkbox] { flex:0 0 auto; width:18px; height:18px; margin:0; }
+.ig-notification-settings .ig-setting-toggle { min-height:52px; font-size:14px; cursor:pointer; }
+.ig-setting-toggle input[role=switch] { appearance:none; width:42px; height:24px; border-radius:20px; border:1px solid var(--border); background:var(--text-secondary); position:relative; transition:background .2s; }
+.ig-setting-toggle input[role=switch]::before { content:''; position:absolute; width:18px; height:18px; top:2px; left:2px; border-radius:50%; background:#fff; transition:transform .2s; }
+.ig-setting-toggle input[role=switch]:checked { background:var(--brand-primary); }
+.ig-setting-toggle input[role=switch]:checked::before { transform:translateX(18px); }
+.ig-notification-settings input:focus-visible,.ig-notification-settings select:focus-visible { outline:2px solid var(--accent-foreground); outline-offset:3px; }
+.ig-setting-field select { box-sizing:border-box; min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; color:var(--text-primary); background:var(--surface); }
+.ig-test-explanation,.ig-bot-identity { color:var(--text-secondary); font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+.ig-bot-identity { margin-bottom:12px !important; color:var(--accent-foreground) !important; }
+.ig-main .ig-how { margin-top:0; }
+@media(max-width:900px) { .ig-telegram-layout { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:600px) { .ig-notification-settings,.ig-connection,.ig-permissions { padding:20px; } .ig-setting-grid,.ig-steps { grid-template-columns:minmax(0,1fr); } }

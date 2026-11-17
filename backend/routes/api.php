@@ -26,7 +26,11 @@ Route::post('/invitations/{token}/accept-existing', [InvitationController::class
 Route::get('/reports/pdf-download/{token}', [\App\Http\Controllers\Api\PdfExportController::class, 'download'])
     ->where('token', '[A-Za-z0-9]{64}')->middleware('throttle:30,1')->name('reports.pdf.download');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'workspace.context'])->group(function () {
+    Route::get('/workspaces', [\App\Http\Controllers\Api\WorkspaceController::class, 'index']);
+    Route::post('/workspaces/{business}/switch', [\App\Http\Controllers\Api\WorkspaceController::class, 'switch']);
+    Route::get('/permissions', [\App\Http\Controllers\Api\WorkspaceController::class, 'permissions'])->middleware('permission:team.manage');
+    Route::put('/users/{user}/permissions', [\App\Http\Controllers\Api\WorkspaceController::class, 'updatePermissions'])->middleware('permission:team.manage');
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [UserManagementController::class, 'changePassword']);
@@ -50,15 +54,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('permission:telegram.link')->group(function () {
             Route::post('/telegram/link-code', [TelegramLinkController::class, 'createCode'])->middleware('throttle:5,1');
             Route::get('/telegram/status', [TelegramLinkController::class, 'status'])->middleware('throttle:30,1');
+            Route::post('/telegram/test-notification', [TelegramLinkController::class, 'sendTestNotification'])->middleware('throttle:3,1');
             Route::delete('/telegram/link', [TelegramLinkController::class, 'disconnect'])->middleware('throttle:5,1');
         });
         Route::middleware('permission:telegram.settings')->group(function () {
             Route::get('/telegram/notification-settings', [TelegramLinkController::class, 'notificationSettings']);
             Route::put('/telegram/notification-settings', [TelegramLinkController::class, 'updateNotificationSettings']);
-            Route::post('/telegram/test-notification', [TelegramLinkController::class, 'sendTestNotification'])->middleware('throttle:3,1');
         });
 
-        Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.operational');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.personal');
         Route::get('/my-dashboard', [DashboardController::class, 'personal'])->middleware('permission:dashboard.personal');
 
         Route::get('/inventory-expiration', [\App\Http\Controllers\Api\ExpirationController::class, 'index'])->middleware('permission:inventory.read');
@@ -68,7 +72,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/products', ProductController::class)->only(['index', 'show'])->middleware('permission:inventory.read');
         Route::apiResource('/products', ProductController::class)->only(['store', 'update', 'destroy'])->middleware('permission:inventory.manage');
         Route::get('/products/{product}/image', [ProductController::class, 'image'])->middleware('permission:inventory.read');
-        Route::apiResource('/purchases', PurchaseController::class)->middleware('permission:purchases.manage');
+        Route::apiResource('/purchases', PurchaseController::class)->only(['index', 'show'])->middleware(['permission:purchases.manage', 'permission:reports.financial']);
+        Route::apiResource('/purchases', PurchaseController::class)->only(['store', 'update', 'destroy'])->middleware('permission:purchases.manage');
         Route::get('/sales', [SaleController::class, 'index'])->middleware('permission:sales.read.own');
         Route::post('/sales', [SaleController::class, 'store'])->middleware('permission:sales.create');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->middleware('permission:sales.read.own');

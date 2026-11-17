@@ -1,0 +1,13 @@
+[Unit]
+Description=KotTraLuy Laravel scheduler tick
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/kottraluy/current/backend
+ExecStart=/usr/bin/php artisan schedule:run --no-interaction
+TimeoutStartSec=0
+UMask=0027

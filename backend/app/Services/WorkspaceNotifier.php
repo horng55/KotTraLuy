@@ -45,7 +45,7 @@ class WorkspaceNotifier
         $configuredRecipients = $inventoryEvent && ($business = Business::find($businessId))
             ? app(TelegramInventoryNotifier::class)->preferences($business)['recipients']
             : [];
-        $recipients = User::where('business_id', $businessId)->where(function ($query) use ($owners, $additionalRecipients, $sharedEvent) {
+        $recipients = User::where(fn ($query) => $query->where('business_id', $businessId)->orWhereIn('id', \Illuminate\Support\Facades\DB::table('business_user')->where('business_id', $businessId)->where('status', 'active')->select('user_id')))->where(function ($query) use ($owners, $additionalRecipients, $sharedEvent) {
             if ($sharedEvent) {
                 $query->where('status', 'active');
             } elseif ($owners) {
@@ -57,6 +57,11 @@ class WorkspaceNotifier
         })->where('status', 'active')->get();
 
         foreach ($recipients as $recipient) {
+            if (!$recipient->useWorkspace($businessId)) continue;
+            if (str_starts_with($type, 'sale.') || $type === 'payment.received') {
+                if (!$recipient->canDo('sales.read.all') && (!$entityId || !\App\Models\Sale::where('business_id', $businessId)->where('user_id', $recipient->id)->whereKey($entityId)->exists())) continue;
+            }
+            if (str_starts_with($type, 'expense.') && !$recipient->canDo('expenses.manage')) continue;
             $notification = WorkspaceNotification::firstOrCreate([
                 'business_id' => $businessId,
                 'notifiable_type' => $recipient->getMorphClass(),

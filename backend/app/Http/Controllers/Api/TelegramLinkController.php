@@ -39,17 +39,17 @@ class TelegramLinkController
         $user->setAttribute('access_role', $user->accessRole());
         $user->setAttribute('permissions', $user->permissionList());
 
-        return response()->json([
+        return response()->json(app(\App\Services\WorkspaceDataVisibility::class)->filter([
             'token' => $token,
-            'user' => $user->load('business'),
-        ]);
+            'user' => $user->load('business')->toArray(),
+        ], $user));
     }
 
     public function createCode(Request $request)
     {
         $user = $request->user();
 
-        if ($user->role === 'staff' && ! $user->telegram_enabled) {
+        if ($user->role !== 'owner' && ! $user->telegram_enabled) {
             return response()->json([
                 'message' => 'Your owner has not enabled Telegram access for your account.',
                 'code' => 'telegram_access_disabled',
@@ -90,13 +90,19 @@ class TelegramLinkController
 
     public function status(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user()->fresh();
+        $user->workspaceContext = $request->user()->workspaceContext;
         $chatId = $user->telegram_chat_id;
 
         return response()->json([
-            'connected' => $chatId !== null,
+            'connected' => filled($chatId),
+            'user_id' => $user->id,
+            'workspace_id' => $user->business_id,
+            'workspace_name' => $user->business?->name,
+            'bot_username' => ltrim((string) config('services.telegram.bot_username', 'KotTraLuyBot'), '@'),
+            'test_eligible' => $this->testAvailable() && filled($chatId) && $user->status === 'active' && ($user->role === 'owner' || $user->telegram_enabled),
             'telegram_chat' => $chatId === null ? null : $this->maskedChatId((string) $chatId),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function disconnect(Request $request)
@@ -139,7 +145,7 @@ class TelegramLinkController
 
     public function updateNotificationSettings(Request $request, TelegramInventoryNotifier $notifier)
     {
-        abort_unless($request->user()->role === 'owner', 403);
+        abort_unless($request->user()->canDo('telegram.settings') && in_array($request->user()->accessRole(), ['owner', 'manager'], true), 403);
         $data = $request->validate([
             'telegram_enabled' => ['required', 'boolean'],
             'low_stock' => ['required', 'boolean'],
@@ -148,7 +154,10 @@ class TelegramLinkController
             'expired' => ['required', 'boolean'],
             'reminder_frequency_hours' => ['required', 'integer', 'min:1', 'max:168'],
             'recipients' => ['nullable', 'array', 'max:100'],
-            'recipients.*' => ['integer', 'distinct', \Illuminate\Validation\Rule::exists('users', 'id')->where(fn ($query) => $query->where('business_id', $request->user()->business_id)->where('status', 'active'))],
+            'recipients.*' => ['integer', 'distinct', function ($attribute, $value, $fail) use ($request) {
+                $recipient = User::find($value);
+                if (!$recipient || !$recipient->useWorkspace((int) $request->user()->business_id)) $fail('The recipient must be an active member of this workspace.');
+            }],
             'preferred_language' => ['sometimes', 'in:en,km'],
         ]);
         $language = $data['preferred_language'] ?? $request->user()->preferred_language ?? 'en';
@@ -160,9 +169,9 @@ class TelegramLinkController
 
     public function sendTestNotification(Request $request, TelegramInventoryNotifier $notifier)
     {
-        abort_unless($this->testAvailable(), 404, 'Telegram test alerts are available only in development and testing environments.');
+        abort_unless($this->testAvailable(), 404, 'Telegram delivery is not configured.');
         $user = $request->user();
-        abort_unless($user->telegram_chat_id && ($user->role === 'owner' || $user->telegram_enabled), 422, 'Connect Telegram before sending a test notification.');
+        abort_unless($user->status === 'active' && $user->telegram_chat_id && ($user->role === 'owner' || $user->telegram_enabled), 422, 'Connect Telegram before sending a test notification.');
         $result = $notifier->sendTest($user);
         return response()->json(['accepted' => true, 'telegram_message_id' => $result['message_id']]);
     }

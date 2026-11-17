@@ -37,8 +37,7 @@ class PdfExportController
         $export = Cache::get('pdf-export:'.$token);
         abort_unless($export, 404);
         $user = User::find($export['user_id']);
-        abort_unless($user && $user->status === 'active' && !$user->must_change_password
-            && (int) $user->business_id === (int) $export['business_id'], 403);
+        abort_unless($user && $user->useWorkspace((int) $export['business_id']) && !$user->must_change_password && $user->canDo('reports.financial'), 403);
 
         return response(base64_decode($export['contents']), 200, [
             'Content-Type' => 'application/pdf',

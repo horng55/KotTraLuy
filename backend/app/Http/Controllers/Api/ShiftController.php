@@ -38,7 +38,7 @@ class ShiftController
             return response()->json(['message' => 'You already have an open shift for this business.'], 422);
         }
 
-        if ($request->user()->role === 'staff'
+        if (!$request->user()->canDo('shifts.manage')
             && $request->user()->assigned_shift
             && $data['shift_type'] !== $request->user()->assigned_shift) {
             return response()->json([

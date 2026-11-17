@@ -28,6 +28,7 @@ class ProductController
             return response()->json(['message' => 'Owner access only.'], 403);
         }
 
+        abort_if($request->has('default_cost') && !$request->user()->canDo('reports.financial'), 403, 'Financial permission is required to change product costs.');
         $data = $request->validate([
             'name' => 'required|string',
             'sku' => 'nullable|string',
@@ -105,7 +106,10 @@ class ProductController
     public function alerts(Request $request)
     {
         app(InventoryAlertService::class)->refresh($request->user()->business);
-        return response()->json(InventoryAlert::where('business_id', $request->user()->business_id)->whereNull('resolved_at')->with(['product', 'stockBatch'])->latest()->get());
+        return response()->json(InventoryAlert::where('business_id', $request->user()->business_id)->whereNull('resolved_at')->with(['product', 'stockBatch'])->latest()->get()->map(function ($alert) use ($request) {
+            $alert->setAttribute('time_remaining', $alert->stockBatch?->expiry_date ? app(\App\Services\ExpirationCountdown::class)->format($alert->stockBatch->expiry_date->toDateString(), $request->user()->preferred_language ?: 'en') : null);
+            return $alert;
+        }));
     }
 
     public function update(Request $request, Product $product, ProductImageService $images)
@@ -118,6 +122,7 @@ class ProductController
             return response()->json(['message' => 'Owner access only.'], 403);
         }
 
+        abort_if($request->has('default_cost') && !$request->user()->canDo('reports.financial'), 403, 'Financial permission is required to change product costs.');
         $data = $request->validate([
             'name' => 'sometimes|required|string',
             'sku' => 'nullable|string',

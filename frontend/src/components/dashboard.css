@@ -134,3 +134,10 @@
   .bd-quick-grid > button { padding: 12px; flex-wrap: wrap; }
   .bd-quick-grid > button > svg { display: none; }
 }
+.bd-kpis { grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:20px; }
+.bd-kpis > .bd-kpi { grid-column:auto; }
+.bd-shift { grid-column:1 / -1; padding:20px; }
+.bd-grid:not(:has(> .bd-inventory)) > .bd-transactions,.bd-grid:not(:has(> .bd-transactions)) > .bd-inventory { grid-column:1 / -1; }
+.bd-quick-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+.sales-summary { grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); }
+@media(max-width:600px) { .bd-kpis { gap:12px; } }

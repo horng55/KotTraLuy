@@ -13,8 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([__DIR__.'/../app/Console/Commands'])
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
-        $schedule->command('inventory:refresh-alerts')->hourly()->withoutOverlapping();
-        $schedule->command('telegram:remind-inventory')->hourly()->withoutOverlapping();
+        $schedule->call(function (): void {
+            \Illuminate\Support\Facades\Cache::put('operations:scheduler-heartbeat', now()->timestamp, now()->addDay());
+            \App\Jobs\RecordQueueHeartbeat::dispatch();
+        })->name('notifications-heartbeat')->everyMinute()->withoutOverlapping(5);
+        $schedule->command('inventory:refresh-alerts')->everyMinute()->withoutOverlapping(30);
+        $schedule->command('telegram:remind-inventory')->everyMinute()->withoutOverlapping(30);
     })
     ->withMiddleware(function (Middleware $middleware): void {
         // The SPA authenticates API requests with Sanctum bearer tokens.
@@ -22,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // CSRF validation to same-origin API requests such as login/register.
         $middleware->alias([
             'password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
+            'workspace.context' => \App\Http\Middleware\WorkspaceContext::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
     })

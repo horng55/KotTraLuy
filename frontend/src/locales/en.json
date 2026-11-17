@@ -1191,9 +1191,9 @@
   "team.invitation_revoked": "Revoked",
   "team.revoke_invitation": "Revoke invitation",
   "team.revoke_invitation_confirm": "Revoke this invitation?",
-  "common.done": "Done"
-  ,"team.accept_invitation": "Accept invitation"
-  ,"team.accept_invitation_description": "Join this workspace as a {role}. Create your own password to finish setup. Telegram is connected separately after you sign in.",
+  "common.done": "Done",
+  "team.accept_invitation": "Accept invitation",
+  "team.accept_invitation_description": "Join this workspace as a {role}. Create your own password to finish setup. Telegram is connected separately after you sign in.",
   "auth.confirm_password": "Confirm password",
   "team.invitation_declined": "Declined",
   "team.accepted_on": "Accepted on {date}",
@@ -1214,9 +1214,24 @@
   "team.existing_account_prompt": "Already have a KotTraLuy account? Sign in to accept",
   "team.use_new_account": "Use a new account instead",
   "team.sign_in_to_accept": "Sign in to accept",
-  "team.signed_in_accepting": "Signed in. Confirming your workspace access…"
-  ,"common.welcome_back": "Welcome back"
-  ,"sales.recorded_today": "Recorded today"
-  ,"common.total": "Total"
-  ,"sales.your_sales_today": "Your sales today"
+  "team.signed_in_accepting": "Signed in. Confirming your workspace access…",
+  "common.welcome_back": "Welcome back",
+  "sales.recorded_today": "Recorded today",
+  "common.total": "Total",
+  "sales.your_sales_today": "Your sales today",
+  "common.business_hub": "Business Hub",
+  "team.member": "Member",
+  "rbac.permissions": "Workspace permissions",
+  "rbac.restore_defaults": "Restore role defaults",
+  "rbac.workspace_permissions_description": "Choose this member's permissions in the current workspace. Personal account access remains available. Only managers can receive Business Hub permissions.",
+  "rbac.personal_sales": "Personal sales",
+  "rbac.sales_all": "View all workspace sales",
+  "rbac.sales_own": "View personal sales",
+  "rbac.waste": "Record inventory waste",
+  "rbac.shifts_all": "Manage workspace shifts",
+  "expiration.time_remaining": "Time remaining",
+  "telegram.notification_language": "Notification language",
+  "telegram.connection_failed": "Connection Failed",
+  "telegram.test_requires_connection": "Connect your active account to Telegram and enable Telegram access to send a test.",
+  "telegram.test_unavailable": "Telegram delivery is not configured. Contact your workspace administrator."
 }

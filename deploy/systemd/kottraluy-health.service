@@ -1,0 +1,12 @@
+[Unit]
+Description=Check KotTraLuy queue and scheduler health
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/kottraluy/current/backend
+ExecStart=/usr/bin/php artisan notifications:health
+TimeoutStartSec=60
+UMask=0027

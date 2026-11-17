@@ -19,7 +19,12 @@ class NotificationController
         return WorkspaceNotification::where('business_id', $user->business_id)
             ->where('notifiable_type', $user->getMorphClass())
             ->where('notifiable_id', $user->id)
-            ->when($user->accessRole() === 'staff', fn ($query) => $query->where('owner_only', false));
+            ->when(!in_array($user->accessRole(), ['owner', 'manager'], true), fn ($query) => $query->where('owner_only', false))
+            ->when(!$user->canDo('inventory.read'), fn ($query) => $query->where('type', 'not like', 'inventory.%'))
+            ->when(!$user->canDo('expenses.manage'), fn ($query) => $query->where('type', 'not like', 'expense.%'))
+            ->when(!$user->canDo('team.manage'), fn ($query) => $query->where('type', 'not like', 'team.%'))
+            ->when(!$user->canDo('financing'), fn ($query) => $query->whereNotIn('type', ['pack.created', 'business.incomplete']))
+            ->when(!$user->canDo('sales.read.all'), fn ($query) => $query->where(fn ($visible) => $visible->whereNotIn('type', ['sale.created', 'sale.updated', 'sale.deleted', 'sale.unpaid', 'payment.received'])->orWhereIn('data->entity_id', \App\Models\Sale::where('business_id', $user->business_id)->where('user_id', $user->id)->select('id'))));
     }
 
     public function index(Request $request)

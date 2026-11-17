@@ -1184,7 +1184,7 @@
   "team.invitations": "ការអញ្ជើញ",
   "team.contact": "ទំនាក់ទំនង",
   "team.no_invitations": "មិនទាន់មានការអញ្ជើញទេ។",
-  "team.manager": "អ្នកចាត់ការ",
+  "team.manager": "អ្នកគ្រប់គ្រង",
   "team.cashier": "អ្នកគិតលុយ",
   "team.invitation_accepted": "បានទទួលយក",
   "team.invitation_expired": "ផុតកំណត់",
@@ -1214,9 +1214,24 @@
   "team.existing_account_prompt": "មានគណនី KotTraLuy រួចហើយ? ចូលដើម្បីទទួលយក",
   "team.use_new_account": "ប្រើគណនីថ្មីជំនួស",
   "team.sign_in_to_accept": "ចូលដើម្បីទទួលយក",
-  "team.signed_in_accepting": "បានចូល។ កំពុងបញ្ជាក់សិទ្ធិចូលកន្លែងធ្វើការ…"
-  ,"common.welcome_back": "សូមស្វាគមន៍មកវិញ"
-  ,"sales.recorded_today": "បានកត់ត្រាថ្ងៃនេះ"
-  ,"common.total": "សរុប"
-  ,"sales.your_sales_today": "ការលក់របស់អ្នកថ្ងៃនេះ"
+  "team.signed_in_accepting": "បានចូល។ កំពុងបញ្ជាក់សិទ្ធិចូលកន្លែងធ្វើការ…",
+  "common.welcome_back": "សូមស្វាគមន៍មកវិញ",
+  "sales.recorded_today": "បានកត់ត្រាថ្ងៃនេះ",
+  "common.total": "សរុប",
+  "sales.your_sales_today": "ការលក់របស់អ្នកថ្ងៃនេះ",
+  "common.business_hub": "មជ្ឈមណ្ឌលអាជីវកម្ម",
+  "team.member": "សមាជិក",
+  "rbac.permissions": "សិទ្ធិក្នុងកន្លែងធ្វើការ",
+  "rbac.restore_defaults": "ស្ដារសិទ្ធិតាមតួនាទី",
+  "rbac.workspace_permissions_description": "ជ្រើសរើសសិទ្ធិសមាជិកក្នុងកន្លែងធ្វើការបច្ចុប្បន្ន។ សិទ្ធិគណនីផ្ទាល់ខ្លួននៅតែមាន។ មានតែអ្នកគ្រប់គ្រងអាចទទួលសិទ្ធិមជ្ឈមណ្ឌលអាជីវកម្ម។",
+  "rbac.personal_sales": "ការលក់ផ្ទាល់ខ្លួន",
+  "rbac.sales_all": "មើលការលក់ទាំងអស់ក្នុងកន្លែងធ្វើការ",
+  "rbac.sales_own": "មើលការលក់ផ្ទាល់ខ្លួន",
+  "rbac.waste": "កត់ត្រាស្តុកខូចខាត",
+  "rbac.shifts_all": "គ្រប់គ្រងវេនការងារ",
+  "expiration.time_remaining": "រយៈពេលនៅសល់",
+  "telegram.notification_language": "ភាសាជូនដំណឹង",
+  "telegram.connection_failed": "ការតភ្ជាប់បរាជ័យ",
+  "telegram.test_requires_connection": "សូមភ្ជាប់គណនីសកម្មរបស់អ្នកទៅ Telegram និងបើកសិទ្ធិ Telegram ដើម្បីផ្ញើការសាកល្បង។",
+  "telegram.test_unavailable": "មិនទាន់បានកំណត់ការផ្ញើ Telegram។ សូមទាក់ទងអ្នកគ្រប់គ្រង។"
 }

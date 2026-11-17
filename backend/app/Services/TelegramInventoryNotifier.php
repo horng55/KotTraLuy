@@ -29,6 +29,7 @@ class TelegramInventoryNotifier
             'recipients' => [],
         ], (array) ($business->notification_preferences ?? []));
         $preferences['recipients'] = array_values(array_filter((array) ($preferences['recipients'] ?? []), 'is_numeric'));
+        $preferences['expires_today'] = $preferences['expiring_soon'];
         return $preferences;
     }
 
@@ -68,26 +69,6 @@ class TelegramInventoryNotifier
         return $this->send($user->telegram_chat_id, $payload, null, $user->preferred_language ?: 'en');
     }
 
-    private function legacyMessage(array $payload, string $language): string
-    {
-        $km = $language === 'km';
-        $type = (string) ($payload['type'] ?? 'inventory.low_stock');
-        if ($type === 'test') return $km ? "<b>KotTraLuy</b>\nការជូនដំណឹង Telegram សាកល្បងបានជោគជ័យ។" : "<b>KotTraLuy</b>\nTelegram test notification delivered successfully.";
-        $severity = match ($type) {
-            'inventory.out_of_stock' => $km ? 'អស់ពីស្តុក' : 'OUT OF STOCK',
-            'inventory.expired' => $km ? 'ផុតកំណត់' : 'EXPIRED',
-            'inventory.expires_today' => $km ? 'ផុតកំណត់ថ្ងៃនេះ' : 'EXPIRES TODAY',
-            default => $km ? 'ត្រូវការយកចិត្តទុកដាក់' : 'ATTENTION',
-        };
-        $name = htmlspecialchars((string) ($payload['product'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $workspace = htmlspecialchars((string) ($payload['workspace'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $quantity = (string) ($payload['quantity'] ?? 0).' '.htmlspecialchars((string) ($payload['unit'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $batch = !empty($payload['batch_code']) ? ($km ? "\nលេខបាច់៖ {$payload['batch_code']}" : "\nBatch: {$payload['batch_code']}") : '';
-        $expiry = !empty($payload['expiry_date']) ? ($km ? "\nថ្ងៃផុតកំណត់៖ {$payload['expiry_date']}" : "\nExpiration: {$payload['expiry_date']}") : '';
-        $labels = $km ? "\nចំនួននៅសល់៖ {$quantity}\nអាជីវកម្ម៖ {$workspace}" : "\nRemaining: {$quantity}\nWorkspace: {$workspace}";
-        return "<b>{$severity}</b>\n<b>{$name}</b>{$batch}{$expiry}{$labels}";
-    }
-
     private function message(array $payload, string $language): string
     {
         if (isset($payload['type']) && $payload['type'] !== 'test' && !in_array($payload['type'], self::INVENTORY_TYPES, true)) {
@@ -105,27 +86,31 @@ class TelegramInventoryNotifier
             return "<b>KotTraLuy</b>\n<b>".$escape($title)."</b>\n".$escape($body)."\n".$escape($payload['workspace'] ?? '');
         }
         $km = $language === 'km';
-        $type = (string) ($payload['type'] ?? 'inventory.low_stock');
-        if ($type === 'test') return $km ? "<b>KotTraLuy</b>\nការជូនដំណឹង Telegram សាកល្បងបានជោគជ័យ។" : "<b>KotTraLuy</b>\nTelegram test notification delivered successfully.";
+        if (($payload['type'] ?? '') === 'test') return "<b>KotTraLuy</b>\n".($km ? 'ការជូនដំណឹងសាកល្បង Telegram បានផ្ញើដោយជោគជ័យ។' : 'Telegram test notification delivered successfully.');
+        $escape = fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $type = $payload['type'] ?? 'inventory.low_stock';
         $severity = match ($type) {
-            'inventory.out_of_stock' => $km ? 'អស់ពីស្តុក' : 'OUT OF STOCK',
-            'inventory.expired' => $km ? 'ផុតកំណត់' : 'EXPIRED',
-            'inventory.expires_today' => $km ? 'ផុតកំណត់ថ្ងៃនេះ' : 'EXPIRES TODAY',
-            'inventory.expiring_soon' => $km ? 'ជិតផុតកំណត់' : 'EXPIRING SOON',
-            default => $km ? 'ស្តុកជិតអស់' : 'LOW STOCK',
+            'inventory.out_of_stock' => $km ? '🔴 អស់ពីស្តុក' : '🔴 OUT OF STOCK',
+            'inventory.expired' => $km ? '🔴 ផុតកំណត់' : '🔴 EXPIRED',
+            'inventory.expiring_soon', 'inventory.expires_today' => $km ? '🟠 ជិតផុតកំណត់' : '🟠 EXPIRING SOON',
+            default => $km ? '🟡 ស្តុកជិតអស់' : '🟡 LOW STOCK',
         };
-        $name = htmlspecialchars((string) ($payload['product'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $workspace = htmlspecialchars((string) ($payload['workspace'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $quantity = (string) ($payload['quantity'] ?? 0).' '.htmlspecialchars((string) ($payload['unit'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $batchCode = htmlspecialchars((string) ($payload['batch_code'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $expiryDate = htmlspecialchars((string) ($payload['expiry_date'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $batch = $batchCode !== '' ? ($km ? "\nលេខបាច់៖ {$batchCode}" : "\nBatch: {$batchCode}") : '';
-        $expiry = $expiryDate !== '' ? ($km ? "\nថ្ងៃផុតកំណត់៖ {$expiryDate}" : "\nExpiration: {$expiryDate}") : '';
-        $days = array_key_exists('days_remaining', $payload) && $payload['days_remaining'] !== null
-            ? ($km ? "\nចំនួនថ្ងៃនៅសល់៖ {$payload['days_remaining']}" : "\nDays remaining: {$payload['days_remaining']}") : '';
-        $labels = $km ? "\nចំនួននៅសល់៖ {$quantity}\nអាជីវកម្ម៖ {$workspace}" : "\nRemaining: {$quantity}\nWorkspace: {$workspace}";
-        $title = $km ? '⚠️ ការជូនដំណឹងស្តុក KotTraLuy' : '⚠️ KotTraLuy Inventory Alert';
-        return "<b>{$title}</b>\n<b>{$severity}</b>\n<b>{$name}</b>{$batch}{$expiry}{$days}{$labels}";
+        $lines = ['<b>⚠️ KotTraLuy '.($km ? 'ការជូនដំណឹងស្តុក' : 'Inventory Alert').'</b>', '', '<b>'.$severity.'</b>', '', '📦 '.($km ? 'ផលិតផល' : 'Product').': <b>'.$escape($payload['product'] ?? '').'</b>'];
+        $expiration = in_array($type, ['inventory.expired', 'inventory.expires_today', 'inventory.expiring_soon'], true);
+        if ($expiration) {
+            if (!empty($payload['batch_code'])) $lines[] = '🏷 '.($km ? 'បាច់' : 'Batch').': '.$escape($payload['batch_code']);
+            if (!empty($payload['expiry_date'])) {
+                $formatter = app(ExpirationCountdown::class);
+                $date = $formatter->timestamp($payload['expiry_date'])->locale($km ? 'km' : 'en')->translatedFormat('d M Y');
+                $lines[] = '📅 '.($km ? 'កាលបរិច្ឆេទផុតកំណត់' : 'Expiration').': '.$escape($date);
+                $lines[] = '⏳ '.($km ? 'រយៈពេលនៅសល់' : 'Time remaining').': <b>'.$escape($formatter->format($payload['expiry_date'], $language)).'</b>';
+            }
+        }
+        $lines[] = '📊 '.($km ? 'ចំនួនស្តុកនៅសល់' : 'Stock remaining').': '.$escape(($payload['quantity'] ?? 0).' '.($payload['unit'] ?? ''));
+        $lines[] = '🏪 '.($km ? 'កន្លែងធ្វើការ' : 'Workspace').': '.$escape($payload['workspace'] ?? '');
+        $lines[] = '';
+        $lines[] = $km ? 'សូមពិនិត្យស្តុករបស់អ្នក។' : ($expiration ? 'Please review your inventory before selling this product.' : 'Please review your inventory and replenish stock.');
+        return implode("\n", $lines);
     }
 
     private function keyboard(int|string|null $productId, int|string|null $batchId, string $language = 'en'): array
