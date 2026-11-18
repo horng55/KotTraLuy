@@ -42,9 +42,9 @@ class WorkspaceNotifier
 
         $inventoryEvent = in_array($type, TelegramInventoryNotifier::INVENTORY_TYPES, true);
         $sharedEvent = $owners && !str_starts_with($type, 'security.') && !str_starts_with($type, 'telegram.');
-        $configuredRecipients = $inventoryEvent && ($business = Business::find($businessId))
-            ? app(TelegramInventoryNotifier::class)->preferences($business)['recipients']
-            : [];
+        $preferences = $inventoryEvent && ($business = Business::find($businessId))
+            ? app(TelegramInventoryNotifier::class)->preferences($business) : [];
+        $configuredRecipients = $preferences['recipients'] ?? [];
         $recipients = User::where(fn ($query) => $query->where('business_id', $businessId)->orWhereIn('id', \Illuminate\Support\Facades\DB::table('business_user')->where('business_id', $businessId)->where('status', 'active')->select('user_id')))->where(function ($query) use ($owners, $additionalRecipients, $sharedEvent) {
             if ($sharedEvent) {
                 $query->where('status', 'active');
@@ -58,6 +58,7 @@ class WorkspaceNotifier
 
         foreach ($recipients as $recipient) {
             if (!$recipient->useWorkspace($businessId)) continue;
+            if ($inventoryEvent && !$recipient->canDo('inventory.read')) continue;
             if (str_starts_with($type, 'sale.') || $type === 'payment.received') {
                 if (!$recipient->canDo('sales.read.all') && (!$entityId || !\App\Models\Sale::where('business_id', $businessId)->where('user_id', $recipient->id)->whereKey($entityId)->exists())) continue;
             }
@@ -82,12 +83,24 @@ class WorkspaceNotifier
             ]);
             $telegramRecipient = !$configuredRecipients || in_array((int) $recipient->id, array_map('intval', $configuredRecipients), true);
             $linkedRecipient = $recipient->telegram_chat_id && ($recipient->role === 'owner' || $recipient->telegram_enabled);
-            if (($inventoryEvent ? $telegramRecipient : $linkedRecipient) && $notification->wasRecentlyCreated) {
+            $inventoryEligible = $inventoryEvent && $telegramRecipient && $linkedRecipient
+                && !empty($preferences['telegram_enabled'])
+                && !empty($preferences[str_replace('inventory.', '', $type)])
+                && empty($notification->data['resolved_at']);
+            if (($inventoryEvent ? $inventoryEligible : ($linkedRecipient && $notification->wasRecentlyCreated))) {
                 $delivery = \App\Models\TelegramNotificationDelivery::firstOrCreate([
                     'notification_id' => $notification->id,
                     'user_id' => $recipient->id,
                 ], ['business_id' => $businessId, 'status' => 'pending']);
-                SendTelegramInventoryNotification::dispatch($delivery->id)->afterCommit();
+                $queue = $delivery->wasRecentlyCreated;
+                // Recover pre-connection / disabled skips after consent without
+                // replaying sent, failed or already pending deliveries.
+                if ($inventoryEvent && !$queue) {
+                    $queue = (bool) \App\Models\TelegramNotificationDelivery::whereKey($delivery->id)
+                        ->where('status', 'skipped')->whereNull('sent_at')
+                        ->update(['status' => 'pending', 'last_error' => null, 'next_attempt_at' => null]);
+                }
+                if ($queue) SendTelegramInventoryNotification::dispatch($delivery->id)->afterCommit();
             }
         }
     }

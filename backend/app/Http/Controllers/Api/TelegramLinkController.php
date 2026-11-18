@@ -140,7 +140,8 @@ class TelegramLinkController
 
     public function notificationSettings(Request $request, TelegramInventoryNotifier $notifier)
     {
-        return response()->json([...$notifier->preferences($request->user()->business), 'preferred_language' => $request->user()->preferred_language ?: 'en', 'test_available' => $this->testAvailable()]);
+        $preferences = $notifier->preferences($request->user()->business);
+        return response()->json([...$preferences, 'preferred_language' => $preferences['preferred_language'] ?: $request->user()->preferred_language ?: 'en', 'test_available' => $this->testAvailable()]);
     }
 
     public function updateNotificationSettings(Request $request, TelegramInventoryNotifier $notifier)
@@ -161,7 +162,7 @@ class TelegramLinkController
             'preferred_language' => ['sometimes', 'in:en,km'],
         ]);
         $language = $data['preferred_language'] ?? $request->user()->preferred_language ?? 'en';
-        unset($data['preferred_language']);
+        $data['preferred_language'] = $language;
         $request->user()->forceFill(['preferred_language' => $language])->save();
         $request->user()->business->forceFill(['notification_preferences' => $data])->save();
         return response()->json([...$notifier->preferences($request->user()->business->fresh()), 'preferred_language' => $language, 'test_available' => $this->testAvailable()]);
@@ -172,8 +173,33 @@ class TelegramLinkController
         abort_unless($this->testAvailable(), 404, 'Telegram delivery is not configured.');
         $user = $request->user();
         abort_unless($user->status === 'active' && $user->telegram_chat_id && ($user->role === 'owner' || $user->telegram_enabled), 422, 'Connect Telegram before sending a test notification.');
-        $result = $notifier->sendTest($user);
-        return response()->json(['accepted' => true, 'telegram_message_id' => $result['message_id']]);
+        // Persist the actual API outcome, not merely a queued-job acknowledgement.
+        $notification = \App\Models\WorkspaceNotification::create([
+            'id' => (string) Str::uuid(), 'type' => 'telegram.test', 'business_id' => $user->business_id,
+            'notifiable_type' => $user->getMorphClass(), 'notifiable_id' => $user->id,
+            'event_key' => 'telegram.test:'.Str::uuid(),
+            'data' => ['key' => 'telegram.test', 'category' => 'system', 'params' => [], 'action_page' => 'telegram'],
+            'read_at' => now(),
+        ]);
+        $delivery = \App\Models\TelegramNotificationDelivery::create([
+            'notification_id' => $notification->id, 'user_id' => $user->id, 'business_id' => $user->business_id,
+            'status' => 'pending', 'attempts' => 1, 'last_attempt_at' => now(),
+        ]);
+        try {
+            $result = $notifier->sendTest($user);
+            $delivery->update(['status' => 'sent', 'sent_at' => now(), 'telegram_message_id' => $result['message_id'], 'telegram_response' => $result['response'] ?? null]);
+        } catch (\Throwable $failure) {
+            $category = $failure instanceof \App\Services\TelegramRateLimitException ? 'rate_limited'
+                : ($failure instanceof \App\Services\TelegramPermanentFailureException ? 'telegram_rejected' : 'transient');
+            $message = match ($category) {
+                'rate_limited' => 'Telegram rate limit reached. Please try again later.',
+                'telegram_rejected' => 'Telegram rejected this chat. Open @KotTraLuyBot, unblock it and reconnect your account.',
+                default => 'Telegram could not be reached or rejected delivery. Please try again later.',
+            };
+            $delivery->update(['status' => 'failed', 'error_category' => $category, 'last_error' => $message]);
+            return response()->json(['accepted' => false, 'delivery_id' => $delivery->id, 'status' => 'failed', 'message' => $message], 502);
+        }
+        return response()->json(['accepted' => true, 'status' => 'sent', 'delivery_id' => $delivery->id, 'telegram_message_id' => $result['message_id']]);
     }
 
     private function testAvailable(): bool

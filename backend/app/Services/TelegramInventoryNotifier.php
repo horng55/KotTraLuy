@@ -26,6 +26,7 @@ class TelegramInventoryNotifier
             'expiring_soon' => true,
             'expired' => true,
             'reminder_frequency_hours' => 24,
+            'preferred_language' => null,
             'recipients' => [],
         ], (array) ($business->notification_preferences ?? []));
         $preferences['recipients'] = array_values(array_filter((array) ($preferences['recipients'] ?? []), 'is_numeric'));
@@ -66,7 +67,7 @@ class TelegramInventoryNotifier
     {
         $business = $user->business;
         $payload = ['type' => 'test', 'product' => $business->name, 'quantity' => 0, 'unit' => '', 'workspace' => $business->name];
-        return $this->send($user->telegram_chat_id, $payload, null, $user->preferred_language ?: 'en');
+        return $this->send($user->telegram_chat_id, $payload, null, $this->preferences($business)['preferred_language'] ?: $user->preferred_language ?: 'en');
     }
 
     private function message(array $payload, string $language): string

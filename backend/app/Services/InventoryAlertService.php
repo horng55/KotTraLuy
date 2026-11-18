@@ -49,6 +49,12 @@ class InventoryAlertService
                 $quantity = $product->batches()->exists()
                     ? (int) $product->batches()->where('quantity_remaining', '>', 0)->where(fn ($query) => $query->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today))->sum('quantity_remaining')
                     : (int) $product->stock_quantity;
+                // Reconcile still-active alerts after a new owner links/enables
+                // Telegram; the alert-created observer runs only once.
+                app(WorkspaceNotifier::class)->publish($business->id, 'inventory.'.$condition,
+                    'inventory.alert:'.$alert->id,
+                    ['product' => $product->name, 'quantity' => $quantity, 'unit' => $product->unit, 'expiry_date' => null],
+                    'product', $product->id);
                 \App\Models\WorkspaceNotification::where('business_id', $business->id)->where('event_key', 'inventory.alert:'.$alert->id)->get()->each(function ($notification) use ($product, $quantity): void {
                     $data = $notification->data;
                     $data['params'] = [...($data['params'] ?? []), 'product' => $product->name, 'quantity' => $quantity, 'unit' => $product->unit];

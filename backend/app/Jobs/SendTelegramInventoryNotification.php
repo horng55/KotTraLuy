@@ -79,7 +79,8 @@ class SendTelegramInventoryNotification implements ShouldQueue
         $params['workspace'] = $user->business?->name;
         $params['batch_code'] = $params['batch_code'] ?? $product?->batches()->find($params['batch_id'] ?? 0)?->batch_code;
         try {
-            $result = $notifier->send($user->telegram_chat_id, $params, $product, $user->preferred_language ?: 'en');
+            $result = $notifier->send($user->telegram_chat_id, $params, $product,
+                ($inventoryEvent ? ($preferences['preferred_language'] ?? null) : null) ?: $user->preferred_language ?: 'en');
             $delivery->update(['status' => 'sent', 'sent_at' => now(), 'next_attempt_at' => null, 'telegram_message_id' => $result['message_id'], 'last_error' => null, 'error_category' => null, 'telegram_response' => $result['response'] ?? null]);
         } catch (TelegramRateLimitException $failure) {
             $delivery->update(['status' => 'pending', 'next_attempt_at' => now()->addSeconds($failure->retryAfter), 'last_error' => $failure->getMessage(), 'error_category' => 'rate_limited']);

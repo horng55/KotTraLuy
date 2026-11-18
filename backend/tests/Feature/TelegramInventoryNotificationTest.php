@@ -93,11 +93,11 @@ class TelegramInventoryNotificationTest extends TestCase
     {
         Queue::fake();
         $business = Business::factory()->create();
-        $owner = User::factory()->create(['business_id' => $business->id, 'role' => 'owner', 'status' => 'active']);
+        $owner = User::factory()->create(['business_id' => $business->id, 'role' => 'owner', 'status' => 'active', 'telegram_chat_id' => 112233]);
         $staff = User::factory()->create(['business_id' => $business->id, 'role' => 'staff', 'status' => 'active']);
         $inactive = User::factory()->create(['business_id' => $business->id, 'status' => 'inactive']);
         $outsider = User::factory()->create();
-        $business->update(['notification_preferences' => ['recipients' => [$owner->id]]]);
+        $business->update(['notification_preferences' => ['telegram_enabled' => true, 'recipients' => [$owner->id]]]);
         app(\App\Services\WorkspaceNotifier::class)->publish($business->id, 'inventory.low_stock', 'shared-stock-alert', ['product' => 'Coca', 'quantity' => 2]);
 
         $alerts = WorkspaceNotification::where('event_key', 'shared-stock-alert')->get();

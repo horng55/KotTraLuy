@@ -19,25 +19,31 @@ class AuthController
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'business_name' => 'required|string',
+            'preferred_language' => 'sometimes|in:en,km',
         ]);
 
-        $business = Business::create([
-            'name' => $data['business_name'],
-            'business_type' => 'retail',
-            'currency' => 'USD',
-            'timezone' => 'Asia/Phnom_Penh',
-            'status' => 'active',
-        ]);
+        [$business, $user] = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            $business = Business::create([
+                'name' => $data['business_name'],
+                'business_type' => 'retail',
+                'currency' => 'USD',
+                'timezone' => 'Asia/Phnom_Penh',
+                'status' => 'active',
+            ]);
+            $user = User::create([
+                'business_id' => $business->id,
+                'name' => $data['name'],
+                'username' => isset($data['username']) ? strtolower($data['username']) : null,
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'role' => 'owner',
+                'status' => 'active',
+                'preferred_language' => $data['preferred_language'] ?? 'en',
+            ]);
 
-        $user = User::create([
-            'business_id' => $business->id,
-            'name' => $data['name'],
-            'username' => isset($data['username']) ? strtolower($data['username']) : null,
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'role' => 'owner',
-            'status' => 'active',
-        ]);
+            app(\App\Services\WorkspaceNotificationSetup::class)->initialize($business);
+            return [$business, $user];
+        });
 
         $token = $user->createToken('biztrack')->plainTextToken;
 

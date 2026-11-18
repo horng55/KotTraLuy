@@ -113,37 +113,54 @@ Artisan::command('telegram:diagnose', function () {
 })->purpose('Check Telegram bot credentials and webhook health without exposing the bot token');
 
 Artisan::command('inventory:refresh-alerts', function (InventoryAlertService $alerts) {
-    Business::where('status', 'active')->each(fn ($business) => $alerts->refresh($business));
+    $failures = 0;
+    foreach (Business::where('status', 'active')->lazyById(100) as $business) {
+        try {
+            $alerts->refresh($business);
+        } catch (\Throwable $failure) {
+            $failures++;
+            \Illuminate\Support\Facades\Log::error('Inventory workspace refresh failed.', ['business_id' => $business->id, 'exception' => get_class($failure)]);
+            $this->error('Inventory refresh failed for workspace '.$business->id.'. See server logs.');
+        }
+    }
+    if ($failures) return Command::FAILURE;
     \Illuminate\Support\Facades\Cache::put('operations:inventory-heartbeat', now()->timestamp, now()->addDay());
     $this->info('Inventory alerts refreshed.');
 })->purpose('Refresh expiry and stock alerts for every active business');
 
 Artisan::command('telegram:remind-inventory', function (TelegramInventoryNotifier $notifier) {
-    Business::where('status', 'active')->each(function ($business) use ($notifier) {
-        $preferences = $notifier->preferences($business);
-        if (!$preferences['telegram_enabled']) return;
-        $cutoff = now()->subHours((int) $preferences['reminder_frequency_hours']);
-        WorkspaceNotification::where('business_id', $business->id)
-            ->whereIn('type', TelegramInventoryNotifier::INVENTORY_TYPES)
-            ->whereNull('data->resolved_at')->with('notifiable')->get()->each(function ($notification) use ($business, $cutoff, $preferences) {
-                // Each workspace notification belongs to one recipient. Never fan it
-                // out again or reset deliveries that are already queued / backing off.
-                $recipient = $notification->notifiable;
-                if (!$recipient instanceof User || !$recipient->useWorkspace((int) $business->id)
-                    || $recipient->status !== 'active' || !$recipient->telegram_chat_id
-                    || !$recipient->canDo('inventory.read')
-                    || ($recipient->role === 'staff' && !$recipient->telegram_enabled)
-                    || ($preferences['recipients'] && !in_array((int) $recipient->id, array_map('intval', $preferences['recipients']), true))
-                    || empty($preferences[str_replace('inventory.', '', $notification->type)])) return;
-                $delivery = TelegramNotificationDelivery::where('notification_id', $notification->id)
-                    ->where('user_id', $recipient->id)->first();
-                if (!$delivery) return;
-                // Compare-and-set ensures overlapping scheduler invocations enqueue once.
-                $claimed = TelegramNotificationDelivery::whereKey($delivery->id)
-                    ->where('status', 'sent')->where('sent_at', '<=', $cutoff)
-                    ->update(['status' => 'pending', 'next_attempt_at' => null]);
-                if ($claimed) SendTelegramInventoryNotification::dispatch($delivery->id)->afterCommit();
-            });
+    $failures = 0;
+    Business::where('status', 'active')->lazyById(100)->each(function ($business) use ($notifier, &$failures) {
+        try {
+            $preferences = $notifier->preferences($business);
+            if (!$preferences['telegram_enabled']) return;
+            $cutoff = now()->subHours((int) $preferences['reminder_frequency_hours']);
+            WorkspaceNotification::where('business_id', $business->id)
+                ->whereIn('type', TelegramInventoryNotifier::INVENTORY_TYPES)
+                ->whereNull('data->resolved_at')->with('notifiable')->orderBy('id')->lazy(200)->each(function ($notification) use ($business, $cutoff, $preferences) {
+                    // Each workspace notification belongs to one recipient. Never fan it
+                    // out again or reset deliveries that are already queued / backing off.
+                    $recipient = $notification->notifiable;
+                    if (!$recipient instanceof User || !$recipient->useWorkspace((int) $business->id)
+                        || $recipient->status !== 'active' || !$recipient->telegram_chat_id
+                        || !$recipient->canDo('inventory.read')
+                        || ($recipient->role === 'staff' && !$recipient->telegram_enabled)
+                        || ($preferences['recipients'] && !in_array((int) $recipient->id, array_map('intval', $preferences['recipients']), true))
+                        || empty($preferences[str_replace('inventory.', '', $notification->type)])) return;
+                    $delivery = TelegramNotificationDelivery::where('notification_id', $notification->id)
+                        ->where('user_id', $recipient->id)->first();
+                    if (!$delivery) return;
+                    // Compare-and-set ensures overlapping scheduler invocations enqueue once.
+                    $claimed = TelegramNotificationDelivery::whereKey($delivery->id)
+                        ->where('status', 'sent')->where('sent_at', '<=', $cutoff)
+                        ->update(['status' => 'pending', 'next_attempt_at' => null]);
+                    if ($claimed) SendTelegramInventoryNotification::dispatch($delivery->id)->afterCommit();
+                });
+        } catch (\Throwable $failure) {
+            $failures++;
+            \Illuminate\Support\Facades\Log::error('Inventory workspace reminders failed.', ['business_id' => $business->id, 'exception' => get_class($failure)]);
+        }
     });
+    if ($failures) return Command::FAILURE;
     $this->info('Telegram inventory reminders queued.');
 })->purpose('Queue due Telegram reminders for unresolved inventory alerts');
